@@ -4,6 +4,7 @@
 .gradle
 eclipse/
 build/
+logviewer.properties
 
 # Ignore Gradle GUI config
 gradle-app.setting
