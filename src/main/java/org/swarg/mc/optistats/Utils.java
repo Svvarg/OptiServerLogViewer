@@ -3,6 +3,7 @@ package org.swarg.mc.optistats;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.Calendar;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.ByteBuffer;
@@ -14,6 +15,41 @@ import java.nio.file.StandardOpenOption;
  * @author Swarg
  */
 public class Utils {
+
+    public static long getStartTimeOfCurentDay() {
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+
+    public static long getStartTimeOfNextDay() {
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        c.set(Calendar.DAY_OF_MONTH, c.get(Calendar.DAY_OF_MONTH) + 1);
+        return c.getTimeInMillis();
+    }
+
+    /**
+     * Проверка вхождение точки времени (millis) tval в заданный промежуток
+     * между точками s и e
+     * Если точки s e равны нулю -
+     * @param s если меньше=0 все
+     * @param e если меньше=0 то нет ограничения справа
+     * @param tval
+     * @return
+     */
+    public static boolean isTimeInRange(long tval, long s, long e) {
+        boolean left = s > 0 ? tval >= s : true;
+        boolean right = e > 0 ? tval <= e : true;
+        return left && right;
+    }
+
 
     /**
      * Прочесть только заданный участок в файле
