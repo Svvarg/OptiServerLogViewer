@@ -13,43 +13,133 @@
             google.charts.setOnLoadCallback(drawChart);
 
             function drawChart() {
-                var data = new google.visualization.DataTable();
-                fillData(data);
+                var data1 = new google.visualization.DataTable();
+                var data2 = new google.visualization.DataTable();
+                
+                fillDataStats(data1);                
+                fillDataLags(data2);
+                
+                var joinedData = google.visualization.data.join(data1, data2, 'full', [[0, 0]], [1,2,3,4,5,6], [1]);
+                
+                var date_formatter = new google.visualization.DateFormat({ 
+                    pattern: "dd/MM/yyyy  HH:mm:ss"
+                }); 
+                date_formatter.format(joinedData, 0);  // Where 0 is the index of the column
+
+                var stats_colors = ['#32CD32', '#A00000', '#00FFCC', '#87CEEB', '#F4A460', '#6A5ACD'];
 
                 var options = {
-                    title: 'Server Statistics',
+                    title: 'Server Stats and Lags',
+                    //subtitle: 'Counters and Lags',
+                    legend: { position: 'top'},
+                    
                     //override css
-                    width: 900,
-                    height: 600,
+                    width: 1640,
+                    height: 1020,
+                    interpolateNulls: true,
+                    explorer: {
+                        maxZoomOut: 4,
+                        keepInBounds: true
+                    },                    
                     hAxis: {
-                        title: 'Time'
+                        title: '$DateTime',
+                        format: 'HH:mm'
                         //,gridlines: {count: 30}
                     },
                     vAxis: {
-                        title: 'Values',
+                        title: 'Values',                        
                         //gridlines: {color: 'none'},
                         minValue: 0
                     },
                     seriesType: 'lines',
-                    series: {5: {type: 'bars'}}
+                    series: {
+                        6: { type: 'bars', color: '#ff0000' }
+                    },
+                    colors: stats_colors
                 };
 
-                //LineChart
+                //LineChart ComboChart
                 var chart = new google.visualization.ComboChart(document.getElementById('chart_div'));
-                chart.draw(data, options);
+                chart.draw(joinedData, options);
+                
+                //Lags Only
+                var chartLags = new google.visualization.ComboChart(document.getElementById('chart_lags'));
+                date_formatter.format(data2, 0);
+                chartLags.draw(data2, {
+                    title: 'Server Tick Lags',
+                    legend: { position: 'top'},
+                    width: 1640,
+                    height: 600,
+                    explorer: {
+                        maxZoomOut: 4,
+                        keepInBounds: true
+                    },                    
+                    hAxis: {
+                        title: 'DateTime',
+                        format: 'HH:mm'
+                    },
+                    vAxis: {
+                        title: 'Lag(ms) 1,000 = 1 sec',
+                        minValue: 0
+                    },
+                    seriesType: 'bars',
+                    lineWidth: 4,
+                    series: {
+                        0: { color: '#ff0000' }
+                    },
+                });
+                
+                //StatsOnly
+                var chartLags = new google.visualization.LineChart(document.getElementById('chart_stats'));
+                date_formatter.format(data2, 0);
+                chartLags.draw(data1, {
+                    title: 'Server Stats',
+                    legend: { position: 'top'},
+                    width: 1640,
+                    height: 600,
+                    explorer: {
+                        maxZoomOut: 4,
+                        keepInBounds: true
+                    },                    
+                    hAxis: {
+                        title: 'DateTime',
+                        format: 'HH:mm'
+                    },
+                    vAxis: {
+                        title: 'Values',
+                        minValue: 0
+                    },
+                    lineWidth: 2,
+                    colors: stats_colors
+                });                
             }
             
             //#DATA_BEGIN
-            function fillData(data) {
-                data.addColumn('datetime', 'Date');
-                data.addColumn('number', 'value_1');
-                data.addColumn('number', 'value_2');
+            function fillDataStats(data) {
+                data.addColumn('datetime', 'DateTime');
+                data.addColumn('number', 'v1');
+                data.addColumn('number', 'v2');
+                data.addColumn('number', 'v3');
+                data.addColumn('number', 'v4');
+                data.addColumn('number', 'v5');
+                data.addColumn('number', 'v6');
                 
-                data.addRows([
-                    [new Date(1485097200000), 22.5, 33],
-                    [new Date(1485098100000), 23.8, 44],
-                    [new Date(1485099000000), 24.2, 34],
-                    [new Date(1485100000000), 24.2, 46]
+                //[new Date(1485000000000), 22.5, 33],
+                data.addRows([          // v1   v2  v3  v4  v5  v6
+                    [new Date(2021,10,1), 23.8, 32, 44, 34, 12, 22],
+                    [new Date(2021,10,3), 23.8, 33, 44, 35, 14, 24],
+                    [new Date(2021,10,5), 24.2, 34, 34, 36, 16, 28],
+                    [new Date(2021,10,7), 24.2, 35, 46, 37, 18, 30]
+                ]);                
+            }
+            
+            function fillDataLags(data) {
+                data.addColumn('datetime', 'DateTime');
+                data.addColumn('number', 'lag');
+                data.addRows([            //lag
+                    [new Date(2021,10,1), 14.5],
+                    [new Date(2021,10,2), 16.5],
+                    [new Date(2021,10,4), 18.8],
                 ]);                
             }
             //#DATA_END
@@ -57,6 +147,9 @@
         </script>
     </head>
     <body>
-        <div id="chart_div" class="chart"></div>
+        <!--<div id="chart_div" class="chart"></div>-->
+        <div id="chart_div"></div>
+        <div id="chart_lags"></div>
+        <div id="chart_stats"></div>
     </body>
 </html>

@@ -10,6 +10,20 @@ import org.swarg.mc.optistats.model.LagEntry;
 import org.swarg.mcforge.statistic.StatEntry;
 
 /**
+ * 
+ *https://developers.google.com/chart/interactive/docs/reference#google_visualization_data_join
+ * //google.visualization.data.join                 (dt1, dt2, joinMethod, keys, dt1Columns, dt2Columns);
+ * var joinedData = google.visualization.data.join(data1, data2, 'full', [[0, 0]], [1,2], [1]);
+ * google.visualization.data.join
+ * //Две таблицы соединяются в одну. на подобии SQL join т.е столбцы как бы
+ * комбинируются из двух таблиц в одну поэтому в настройках для соединение точек
+ * из как бы разных таблиц нужно в options обязательно указать:(иначе будут точки)
+ * interpolateNulls: true
+ *
+ * explorer - позволяет "двигать" таблицу в интерактивном режиме и изменять маштаб
+ *
+ * https://developers.google.com/chart/interactive/docs/gallery/barchart
+ * 
  * 17-11-21
  * @author Swarg
  */
@@ -38,6 +52,11 @@ class TimingStatsHtmlGen {
             }
             StringBuilder data = new StringBuilder();
             data.append(pattern, 0, bi);
+            
+            int i = pattern.indexOf("$DateTime");
+            String date = Utils.getFormatedTimeInterval(s, e);
+            data.replace(i, i+9, date);
+
             //create chart-data
             createJSGoogleChartData(selist, lelist, data);
 
@@ -50,30 +69,41 @@ class TimingStatsHtmlGen {
 
     private static void createJSGoogleChartData(List<StatEntry> selist, List<LagEntry> lelist, StringBuilder sb) {
         final String dac = "data.addColumn('";
-        sb.append("function fillData(data){\n");
-        sb.append(dac).append("datetime', 'DateTime');\n");
-        //StatEntry
-        sb.append(dac).append("number', 'memUsed');\n");
-        sb.append(dac).append("number', 'tps');\n");
-        sb.append(dac).append("number', 'online');\n");
-        sb.append(dac).append("number', 'chunks');\n");
-        sb.append(dac).append("number', 'entities');\n");
-        sb.append(dac).append("number', 'tiles');\n");
+        sb.append("function fillDataStats(data){\n");
+       
+        sb.append(dac).append("datetime','DateTime');\n");
+        sb.append(dac).append("number',  'Tps(x100)');\n");
+        sb.append(dac).append("number',  'UsedMem(Mb)');\n");
+        sb.append(dac).append("number',  'Online(x100)');\n");
+        sb.append(dac).append("number',  'Chunks');\n");
+        sb.append(dac).append("number',  'Entities');\n");
+        sb.append(dac).append("number',  'Tiles');\n");
 
-        //LagsEntry
-        //sb.append(dac).append("number', 'lags');\n");
-
-        sb.append("data.addRows([\n");
+        sb.append("data.addRows([");
             for (int i = 0; i < selist.size(); i++) {
                 StatEntry se = selist.get(i);
-                sb.append("[new Date(").append(se.time).append("), ");
-                 sb.append(se.memUsed).append(", ");
-                 sb.append((se.tps & 0xFF)).append(", ");
-                 sb.append(se.online).append(", ");
-                 sb.append(se.chunks).append(", ");
-                 sb.append(se.entities).append(", ");
-                 sb.append(se.tiles).append("],\n");
+                sb.append("[new Date(").append(se.time).append("),");
+                 sb.append((se.tps & 0xFF) * 10).append(","); //200 -> 20.0 2000 -> 20.00
+                 sb.append(se.memUsed).append(",");
+                 sb.append(se.online * 100).append(",");//"маштабирование"
+                 sb.append(se.chunks).append(",");
+                 sb.append(se.entities).append(",");
+                 sb.append(se.tiles).append("],");
             }
+        sb.append("]);\n");
+        sb.append("}\n");
+
+        //---- lags ------
+        sb.append("function fillDataLags(data){\n");
+        sb.append(dac).append("datetime', 'DateTime');\n");
+        sb.append(dac).append("number',   'lags(ms)');\n");
+
+        sb.append("data.addRows([");
+        for (int i = 0; i < lelist.size(); i++) {
+            LagEntry e = lelist.get(i);
+            sb.append("[new Date(").append(e.time).append("),");
+            sb.append(e.lag).append("],");
+        }
         sb.append("]);\n");
         sb.append("}");
     }
