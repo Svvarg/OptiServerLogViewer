@@ -9,12 +9,21 @@ import java.nio.file.Path;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * 16-11-21
  * @author Swarg
  */
 public class Utils {
+    
+    public static final DateTimeFormatter DF_DATE = DateTimeFormatter.ofPattern("dd.MM.yy");
+    public static final DateTimeFormatter DF_DATETIME = DateTimeFormatter.ofPattern("dd.MM.yy  HH:mm:ss");
+    public static final DateTimeFormatter DF_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     public static long getStartTimeOfCurentDay() {
         Calendar c = Calendar.getInstance();
@@ -50,6 +59,22 @@ public class Utils {
         return left && right;
     }
 
+
+    /**
+     * Для графика форматированное время начала и конца временного отрезка
+     * по значениям которых построен график
+     * @param start
+     * @param end
+     * @return 
+     */
+    public static String getFormatedTimeInterval(long start, long end) {
+        ZoneId zid = ZoneOffset.systemDefault();
+        ZonedDateTime zts = Instant.ofEpochMilli(start).atZone(zid);
+        ZonedDateTime zte = Instant.ofEpochMilli(end).atZone(zid);
+        return zts.format(Utils.DF_DATETIME) + " - " +
+                zte.format((zts.getDayOfYear() == zte.getDayOfYear()
+                        ? Utils.DF_TIME : Utils.DF_DATETIME));
+    }
 
     /**
      * Прочесть только заданный участок в файле
