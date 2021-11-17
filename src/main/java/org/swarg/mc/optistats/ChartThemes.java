@@ -38,11 +38,10 @@ public class ChartThemes {
         //отображение графика
         theme.setDrawingSupplier(new DefaultDrawingSupplier(
                 new Paint[] {
-                    //определяем цвета графиков
-                    Color.decode("0x00FFCC"),//Green
+                    //определяем цвета самих линий графиков
+                    Color.decode("0x00FFCC"),//Green (Baseline)
                     Color.decode("0xA00000"),//Red
                     Color.decode("0xFFFF00"),
-                    //Color.decode("0x0036CC"), Color.decode("0xFF0000"),
                     Color.decode("0xFF0000"),
                     Color.decode("0xFFFF7F"), Color.decode("0x6681CC"),
                     Color.decode("0xFF7F7F"), Color.decode("0xFFFFBF"),
