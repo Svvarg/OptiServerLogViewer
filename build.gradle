@@ -21,6 +21,7 @@ dependencies {
     compile 'org.swarg.cmds:cmds4j:0.1'
     compile 'org.swarg.common:alib:0.2.2'
     compile 'org.jfree:jfreechart:1.5.0'
+    compile 'org.swarg.mcforge:mcfbackendlib:0.5.4' 
     //compile 'org.apache.logging.log4j:log4j-api:2.8.2'
     //compile 'org.apache.logging.log4j:log4j-core:2.8.2'
     
