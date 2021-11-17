@@ -58,6 +58,9 @@ public class Viewer {
             else if (w.isCmd("lags", "l")) {
                 ans = cmdLags();
             }
+            else if (w.isCmd("stats", "s")) {
+                ans = cmdStats();
+            }
             else {
                 ans = "UNKNOWN cmd: "+ w.arg(w.ai) ;
             }
@@ -132,7 +135,7 @@ public class Viewer {
         //bin-log to text
         else if (w.isCmd("view", "v")) {
             boolean showMillis = w.hasOpt("-sm", "--show-millis");
-            ans = LagStats.getLagReadable(inname, s, e, showMillis);
+            ans = LagStats.getReadable(inname, s, e, showMillis);
         }
 
         //DEBUG Генерация случайного бинарного  лога для испытаний.
@@ -153,6 +156,46 @@ public class Viewer {
             }
         }
 
+        return ans;
+    }
+
+    /* -------------------------------------------------------------------
+                                  Stats
+       ------------------------------------------------------------------- */
+    private static final String STATS_USAGE =
+              "img  [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y] --start-time L1 --end-time L2\n"
+            + "view [-in (file-log.bin)] [--start-time L1] [--end-time L2]\n"
+            + "[NOTE]: Defaults for -in & -out take from config; Default [-s|--start-time] - StartOfCurrentDay, for [-e|--end-time] - CurrentTime\n";
+
+    private Object cmdStats() throws IOException {
+        if (w.isHelpCmdOrNoArgs()) {
+            return STATS_USAGE;
+        }
+        Object ans = "UNKNOWN";
+        //где лежит бинарный лог с данными
+        String defInStats = getProp("inStats", "stats.log.bin");
+        String inname = w.optValueOrDef(defInStats, "-in");
+
+        //временное ограничение (на данный момент все данные собираются в один файл)
+        long s = w.optValueLongOrDef(Utils.getStartTimeOfCurentDay(), "-s", "--start-time"); //TODO начало текущего дня
+        long e = w.optValueLongOrDef(System.currentTimeMillis(), "-e", "--end-time");
+
+        if (false) {
+        }
+        // stats view  bin-log to text
+        else if (w.isCmd("view", "v")) {
+            ans = TimingStats.getReadable(inname, s, e);
+        }
+        else if (w.isCmd("img", "i")) {
+            String defOutLagsImp = getProp("outStatsImg", "stats.png");
+            String png = w.optValueOrDef(defOutLagsImp, "-out");
+
+            int weight = (int) w.optValueLongOrDef(getPropI("statsChartWeight", 1280), "-w", "--weight");
+            int height = (int) w.optValueLongOrDef(getPropI("statsChartHeight",  600), "-h", "--height");
+
+            ans = TimingStats.createChartImg(inname, png, weight, height, s, e);
+        }
+        
         return ans;
     }
 
@@ -197,6 +240,7 @@ public class Viewer {
             return def;
         }
     }
+
 
 
 }
