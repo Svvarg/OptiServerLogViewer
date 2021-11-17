@@ -1,15 +1,21 @@
 package org.swarg.mc.optistats;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Random;
+import java.util.List;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Random;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartTheme;
 import org.jfree.chart.ChartUtils;
@@ -18,6 +24,7 @@ import org.jfree.data.time.Second;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.xy.XYDataset;
+
 import org.swarg.common.Binary;
 import org.swarg.common.Strings;
 
@@ -27,6 +34,8 @@ import org.swarg.common.Strings;
  */
 public class LagStats {
     private static final DateTimeFormatter DF_DATE = DateTimeFormatter.ofPattern("dd.MM.yy");
+    private static final DateTimeFormatter DF_DATETIME = DateTimeFormatter.ofPattern("dd.MM.yy  HH:mm:ss");
+    private static final DateTimeFormatter DF_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     /**
      *
@@ -43,17 +52,24 @@ public class LagStats {
         if (!Files.exists(in)) {
             throw new IllegalStateException("No input file "+in);
         }
-        String date = "";
-        if (s > 0) {
-            date = Instant.ofEpochMilli(s).atZone(ZoneOffset.systemDefault()).format(DF_DATE);
-        }
 
-        XYDataset dataset = parseLagFile2Dataset(in, s, e);
+        long[] setime = new long[2];
+        XYDataset dataset = parseLagFile2Dataset(in, s, e, setime);
         ChartTheme theme = ChartThemes.createDarknessTheme();
         ChartFactory.setChartTheme(theme);
+
+        String date;
+        final long start = setime[0];
+        final long end = setime[1];
+        ZoneId zid = ZoneOffset.systemDefault();
+        ZonedDateTime zts = Instant.ofEpochMilli(start).atZone(zid);
+        ZonedDateTime zte = Instant.ofEpochMilli(end).atZone(zid);
+        date = zts.format(DF_DATETIME) + " - " +
+                zte.format((zts.getDayOfYear() == zte.getDayOfYear() ? DF_TIME : DF_DATETIME));
+
         JFreeChart chart = ChartFactory.createTimeSeriesChart(
-            "Server Tick Lags " + date,
-            "DateTime", // X-Axis Label
+            "Server Tick Lags",
+            date,       // X-Axis Label
             "Lag (ms)", // Y-Axis Label
             dataset);
 
@@ -74,23 +90,32 @@ public class LagStats {
      * @param inname
      * @param startStampTime
      * @param endStampTime
+     * @param showMillis показывать и timeMillis
      * @return
      */
-    public static Object getLagReadable(String inname, long startStampTime, long endStampTime) {
+    public static Object getLagReadable(String inname, long startStampTime, long endStampTime, boolean showMillis) {
         try {
             byte[] ba = Files.readAllBytes(Paths.get(inname));
             int cnt = ba.length / 10; //8 time 2 lagvalue
             int off = 0;
-            boolean hasTimeRange = startStampTime > 0 && startStampTime < endStampTime;
             StringBuilder sb = new StringBuilder();
-
+            int j = 0;
             for (int i = 0; i < cnt; i++) {
                 final long time = Binary.readLong(ba, off); off += 8;
-                final int lag = Binary.readUnsignedShort(ba, off); off += 2;
-                if (hasTimeRange && (time < startStampTime || time > endStampTime )) {
+                if (!Utils.isTimeInRange(time, startStampTime, endStampTime )) {
+                    off += 2;//просто пропускаю не читая значение лага
                     continue;
                 }
-                sb.append(Strings.formatDateTime(time)).append("  ").append(lag).append('\n');
+                final int lag = Binary.readUnsignedShort(ba, off); off += 2;
+                String line;
+                String fdt = Strings.formatDateTime(time);
+                if (showMillis) {
+                    line = String.format("#% ,3d  %s (%d)   % ,6d", j, fdt, time, lag);
+                } else {
+                    line = String.format("#% ,3d  %s   % ,6d", j, fdt, lag);
+                }
+                sb.append(line).append('\n');
+                j++;
             }
             return sb;
         }
@@ -99,6 +124,7 @@ public class LagStats {
             return null;
         }
     }
+
 
     /**
      * Читает весь файл и на основе временных рамок от startStampTime до
@@ -109,39 +135,45 @@ public class LagStats {
      * @param src
      * @param startStampTime
      * @param endStampTime
+     * @param out 0 время первой точки 1 - последней
      * @return
      */
-    private static XYDataset parseLagFile2Dataset(Path src, long startStampTime, long endStampTime) {
+    private static XYDataset parseLagFile2Dataset(Path src, long startStampTime, long endStampTime, long[] out) {
         if (src != null && Files.exists(src)) {
             try {
                 //прочесть весь файл целеком TODO часть через AsyncRandomAccess
                 byte[] ba = Files.readAllBytes(src);
                 int cnt = ba.length / 10; //8 time 2 lagvalue
                 int off = 0;
-                boolean hasTimeRange = startStampTime > 0 && startStampTime < endStampTime;
 
                 TimeSeriesCollection dataset = new TimeSeriesCollection();
                 TimeSeries ts = new TimeSeries("Lag");
                 //черта отображающая норму для наглядности.
-                TimeSeries tsbaseline = new TimeSeries("Baseline");
+                TimeSeries tsbaseline = new TimeSeries("Normal");//Baseline
                 boolean first = true;
                 Second sec = null;
+                long lastPointTime = 0;
+                ZoneId zid = ZoneOffset.systemDefault();
 
                 for (int i = 0; i < cnt; i++) {
                     //data
                     final long time = Binary.readLong(ba, off); off += 8;
-                    final int lag = Binary.readUnsignedShort(ba, off); off += 2;
 
-                    if (hasTimeRange && (time < startStampTime || time > endStampTime )) {
+                    if (!Utils.isTimeInRange(time, startStampTime, endStampTime)) {
+                        off += 2;//просто пропускаю не читая значение лага
                         continue;
                     }
-                    LocalDateTime t = Instant.ofEpochMilli(time).atZone(ZoneOffset.systemDefault()).toLocalDateTime();
-                    int s = t.getSecond();
-                    int m = t.getMinute();
-                    int h = t.getHour();
-                    int d = t.getDayOfMonth();
-                    int mm= t.getMonthValue();
-                    int y = t.getYear();
+                    final int lag = Binary.readUnsignedShort(ba, off); off += 2;
+
+                    lastPointTime = time;
+                    //можно ли как-то создавать инстанс секунды без Instant?
+                    ZonedDateTime zt = Instant.ofEpochMilli(time).atZone(zid);//.toLocalDateTime()
+                    int s = zt.getSecond();
+                    int m = zt.getMinute();
+                    int h = zt.getHour();
+                    int d = zt.getDayOfMonth();
+                    int mm= zt.getMonthValue();
+                    int y = zt.getYear();
                     sec = new Second(s, m, h, d, mm, y);
                     ts.add(sec, lag);
                     /*Данные лагов имеют природу резких всплесков, а не графика
@@ -153,11 +185,18 @@ public class LagStats {
                     //draw baseline 2 point
                     if (first) {
                         first = false;
-                        tsbaseline.add(sec, 50);
+                        tsbaseline.add(sec.previous(), 50);
+                        if (out != null && out.length > 0) {
+                            out[0] = time;
+                        }
                     }
                 }
                 //последняя точка для baseline - черта нормы
-                tsbaseline.add(sec, 50);
+                tsbaseline.add(sec.next(), 50);
+                //время последне
+                if (out != null && out.length > 1) {
+                    out[1] = lastPointTime;
+                }
 
                 //первый граффик будет иметь зелёный цвет задаётся в ChartThemes
                 dataset.addSeries(tsbaseline);
@@ -177,46 +216,86 @@ public class LagStats {
 
     /**
      * [DEBUG]
-     * Для отладки - создать файл со случайными данными
-     * @param filename
+     * Генерация бинарного лога со случайными данными в обратном порядке - от
+     * конца текущего дня и на случайное количество шагов в прошлое.
+     * Генерация идёт в обратном порядке с конца выделенного массива к его началу
+     * это сделано для того, чтобы эмулировать бинарный лог имеющий в себе записи
+     * нескольких дней. Из которого в дальнейшем нужно будет взять только значения
+     * для текущего дня.
+     * @param eCount количество генерируемых записей если меньше 0 возьмёт 96
+     * @param filename куда записать
+     * @param canRewrite переписывать для существующего файла (чтобы не затереть
+     * случайно реальный лог)
+     * @param out
+     * @param verbose
      * @return
      * @throws IOException
      */
-    public static Path genRndLagFile(String filename) throws IOException {
+    public static Path genRndLagFile(int eCount, String filename, boolean canRewrite, PrintStream out, boolean verbose) throws IOException {
         Path in = Paths.get(filename);
         Path dir = in.getParent();
         if (dir != null) {
             Files.createDirectories(dir);
         }
+        if (Files.exists(in)) {
+            out.print("Already Exists file: " + in);
+            if (!canRewrite) {
+                out.println(" Use opt [-w|--rewrite-exists]");
+                return null;
+            } else {
+                out.println(" Will be changed");
+            }
+        }
         
-        int cap = 128;
-        byte[] a = new byte[cap*10];
-        long now = System.currentTimeMillis();
-        //long nextDay = now + 60000*60*24;
-        long t = now - 60000*60*48;// -TwoDays from Now
-        int off = 0;
+        eCount = eCount <= 0 ? 96 : eCount;
+        byte[] a = new byte[eCount*10];
+        //для подсчёта количество записей сгенерированых для текущего дня
+        long tStart = Utils.getStartTimeOfCurentDay();
+        
+        //точка начала генерации значений в обратном порядке - начало следующего дня
+        long tEnd = Utils.getStartTimeOfNextDay();
+        long t = tEnd;
+
+        if (verbose) {
+            out.println("Latest TimePoint: " + Strings.formatDateTime(t)+" ("+t+")" );
+        }
+        int off = eCount;
         Random rnd = new Random();
-        int i = 0;
-        int totalPoints = 0;//всего добавленых случайных временных точек логов
+        int k = 0;
+        int i = 0;//totalPointsвсего добавленых случайных временных точек логов
         int todayPoints = 0;// "сегодняшние лаги"
         //всего лагов и сегодняшние для проверки механики рисования графика на сегодня
+        List<String> list = verbose ? new ArrayList<>() : null;
 
-        while ( totalPoints < cap) {
-            i++;
-            //t += i * (60_000 + rnd.nextInt(60_000)) * (1 + rnd.nextInt(2));
-            t += i * (60_000 + rnd.nextInt(60_000));
+        while ( i < eCount) {
+            k++;
+            t -= k * (20_000 + rnd.nextInt(10_000));
             if (rnd.nextInt() % 2 == 0) {
-                Binary.writeLong(a, off, t ); off+=8;
-                int lag = ((i+totalPoints) % 5 != 0) ? 50 + rnd.nextInt(2000) : 1000 + rnd.nextInt(10000);
+                int lag = ((k+i) % 5 != 0) ? 50 + rnd.nextInt(2000) : 1000 + rnd.nextInt(10000);
+                //Для добавления значений с конца массива. Начиная от конца текущего дня и вглубь прошлого
+                off = (((eCount - i)-1) * 10);
+                //Serialize to binlog
+                Binary.writeLong(a, off, t );           off += 8;
                 Binary.writeUnsignedShort(a, off, lag); off += 2;
-                ++totalPoints;
-                if (t > now ) {
+                if (t > tStart ) {
                     todayPoints++;
                 }
+                if (verbose) {
+                    //index : time
+                    list.add(String.format("#% ,3d  %s (%d)   % ,6d",
+                            eCount-i, Strings.formatDateTime(t), t, lag));
+                }
+                ++i;
+            }
+        }
+        if (verbose) {
+            Collections.reverse(list);
+            for (String l : list) {
+                out.println(l);
             }
         }
         //DEBUG
-        System.out.println("TotalLagPoints: "+totalPoints+"  ToDayLagTimePoints: " + todayPoints);
+        out.println("TotalLagPoints: " + i + "  ToDayLagTimePoints: " + todayPoints);
         return Files.write(in, a);
     }
 

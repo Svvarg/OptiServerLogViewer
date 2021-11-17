@@ -1,7 +1,5 @@
 package org.swarg.mc.optistats;
 
-import java.io.File;
-import java.nio.file.Path;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -19,11 +17,12 @@ public class LagStatsTest
     /**
      * Test of genRndLagFile method, of class LagStats.
      */
-    @Test
+    //@Test
     public void testGenRndLagFile() throws Exception {
         System.out.println("genRndLagFile");
         String log = "lag.log.bin";
-        LagStats.genRndLagFile(log);
+        boolean canRewrite = true;
+        LagStats.genRndLagFile(96, log, canRewrite, System.out, false);
         //System.out.println(LagStats.getLagReadable(log, 0, 0));//+
         LagStats.createChartImg(log, "lag.png", 1280, 400, 0, 0);
     }
