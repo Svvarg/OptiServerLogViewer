@@ -10,14 +10,11 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.ZoneId;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-
 import org.jfree.chart.ChartFactory;
-import org.jfree.chart.ChartTheme;
 import org.jfree.chart.ChartUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.time.Second;
@@ -27,15 +24,71 @@ import org.jfree.data.xy.XYDataset;
 
 import org.swarg.common.Binary;
 import org.swarg.common.Strings;
+import org.swarg.mc.optistats.model.LagEntry;
 
 /**
  * 15-11-21
  * @author Swarg
  */
 public class LagStats {
-    private static final DateTimeFormatter DF_DATE = DateTimeFormatter.ofPattern("dd.MM.yy");
-    private static final DateTimeFormatter DF_DATETIME = DateTimeFormatter.ofPattern("dd.MM.yy  HH:mm:ss");
-    private static final DateTimeFormatter DF_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    /**
+     * Построить лист значений входящих в требуемые временные рамки
+     * из бинарного файла лога
+     * @param inname бинарный лог файл
+     * @param startStampTime временная начальная точка выборки
+     * @param endStampTime
+     * @return
+     */
+    public static List<LagEntry> parseFromBin(String inname, long startStampTime, long endStampTime) {
+        try {
+            List<LagEntry> list = new ArrayList<>();
+            byte[] ba = Files.readAllBytes(Paths.get(inname));
+            final int oesz = LagEntry.getSerializeSize();
+            int cnt = ba.length / oesz; //8
+            int off = 0;
+            for (int i = 0; i < cnt; i++) {
+                final long time = Binary.readLong(ba, off);
+                if (!Utils.isTimeInRange(time, startStampTime, endStampTime )) {
+                    off += oesz;//просто пропускаю если время не подходит
+                    continue;
+                }
+                list.add(new LagEntry(ba, off));
+                off += oesz;
+            }
+            return list;
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Преобразовать бинарный лог в читаемое представление
+     * @param inname
+     * @param startStampTime
+     * @param endStampTime
+     * @param showMillis показывать и timeMillis
+     * @return
+     */
+    public static Object getReadable(String inname, long startStampTime, long endStampTime, boolean showMillis) {
+        List<LagEntry> list = parseFromBin(inname, startStampTime, endStampTime);
+        if (list == null || list.isEmpty()) {
+            return "Emtpty for " + inname;
+        }
+        else {
+            final int sz = list.size();
+            StringBuilder sb = new StringBuilder(sz * 116);
+
+            for (int i = 0; i < sz; i++) {
+                LagEntry le = list.get(i);
+                le.appendTo(sb, i, showMillis).append('\n');
+            }
+            return sb;
+        }
+    }
+
 
     /**
      *
@@ -53,77 +106,36 @@ public class LagStats {
             throw new IllegalStateException("No input file "+in);
         }
 
-        long[] setime = new long[2];
-        XYDataset dataset = parseLagFile2Dataset(in, s, e, setime);
-        ChartTheme theme = ChartThemes.createDarknessTheme();
-        ChartFactory.setChartTheme(theme);
+        ChartFactory.setChartTheme(ChartThemes.createDarknessTheme());
 
-        String date;
-        final long start = setime[0];
-        final long end = setime[1];
-        ZoneId zid = ZoneOffset.systemDefault();
-        ZonedDateTime zts = Instant.ofEpochMilli(start).atZone(zid);
-        ZonedDateTime zte = Instant.ofEpochMilli(end).atZone(zid);
-        date = zts.format(DF_DATETIME) + " - " +
-                zte.format((zts.getDayOfYear() == zte.getDayOfYear() ? DF_TIME : DF_DATETIME));
+        List<LagEntry> list = parseFromBin(inname, s, e);
+        if (list.size() > 1) {
+            XYDataset dataset = createDataset(list);
 
-        JFreeChart chart = ChartFactory.createTimeSeriesChart(
-            "Server Tick Lags",
-            date,       // X-Axis Label
-            "Lag (ms)", // Y-Axis Label
-            dataset);
+            final long start = list.get(0).time;
+            final long end   = list.get(list.size()-1).time;
+            final String date = Utils.getFormatedTimeInterval(start, end);
 
-        File out = new File(outname);
-        File dir = out.getParentFile();
-        if (dir != null) {
-            dir.mkdirs();
-        }
+            JFreeChart chart = ChartFactory.createTimeSeriesChart(
+                "Server Tick Lags",
+                date,       // X-Axis Label
+                "Lag (ms)", // Y-Axis Label
+                dataset);
 
-        //chart.getPlot().setsetBackgroundPaint( Color.BLACK);
-
-        ChartUtils.saveChartAsPNG(out, chart, w, h);
-        return out.getAbsoluteFile();
-    }
-
-    /**
-     * Преобразовать бинарный лог в читаемое представление
-     * @param inname
-     * @param startStampTime
-     * @param endStampTime
-     * @param showMillis показывать и timeMillis
-     * @return
-     */
-    public static Object getLagReadable(String inname, long startStampTime, long endStampTime, boolean showMillis) {
-        try {
-            byte[] ba = Files.readAllBytes(Paths.get(inname));
-            int cnt = ba.length / 10; //8 time 2 lagvalue
-            int off = 0;
-            StringBuilder sb = new StringBuilder();
-            int j = 0;
-            for (int i = 0; i < cnt; i++) {
-                final long time = Binary.readLong(ba, off); off += 8;
-                if (!Utils.isTimeInRange(time, startStampTime, endStampTime )) {
-                    off += 2;//просто пропускаю не читая значение лага
-                    continue;
-                }
-                final int lag = Binary.readUnsignedShort(ba, off); off += 2;
-                String line;
-                String fdt = Strings.formatDateTime(time);
-                if (showMillis) {
-                    line = String.format("#% ,3d  %s (%d)   % ,6d", j, fdt, time, lag);
-                } else {
-                    line = String.format("#% ,3d  %s   % ,6d", j, fdt, lag);
-                }
-                sb.append(line).append('\n');
-                j++;
+            File out = new File(outname);
+            File dir = out.getParentFile();
+            if (dir != null) {
+                dir.mkdirs();
             }
-            return sb;
+
+            //chart.getPlot().setsetBackgroundPaint( Color.BLACK);
+
+            ChartUtils.saveChartAsPNG(out, chart, w, h);
+            return out.getAbsoluteFile();
         }
-        catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        return null;
     }
+
 
 
     /**
@@ -138,34 +150,20 @@ public class LagStats {
      * @param out 0 время первой точки 1 - последней
      * @return
      */
-    private static XYDataset parseLagFile2Dataset(Path src, long startStampTime, long endStampTime, long[] out) {
-        if (src != null && Files.exists(src)) {
+    private static XYDataset createDataset(List<LagEntry> list) {
+        if (list != null && list.size() > 0) {
             try {
-                //прочесть весь файл целеком TODO часть через AsyncRandomAccess
-                byte[] ba = Files.readAllBytes(src);
-                int cnt = ba.length / 10; //8 time 2 lagvalue
-                int off = 0;
 
                 TimeSeriesCollection dataset = new TimeSeriesCollection();
                 TimeSeries ts = new TimeSeries("Lag");
                 //черта отображающая норму для наглядности.
                 TimeSeries tsbaseline = new TimeSeries("Normal");//Baseline
-                boolean first = true;
-                Second sec = null;
-                long lastPointTime = 0;
                 ZoneId zid = ZoneOffset.systemDefault();
+                final int lasti = list.size()-1;
 
-                for (int i = 0; i < cnt; i++) {
-                    //data
-                    final long time = Binary.readLong(ba, off); off += 8;
-
-                    if (!Utils.isTimeInRange(time, startStampTime, endStampTime)) {
-                        off += 2;//просто пропускаю не читая значение лага
-                        continue;
-                    }
-                    final int lag = Binary.readUnsignedShort(ba, off); off += 2;
-
-                    lastPointTime = time;
+                for (int i = 0; i <= lasti; i++) {
+                    LagEntry le = list.get(i);
+                    final long time = le.time;
                     //можно ли как-то создавать инстанс секунды без Instant?
                     ZonedDateTime zt = Instant.ofEpochMilli(time).atZone(zid);//.toLocalDateTime()
                     int s = zt.getSecond();
@@ -174,8 +172,8 @@ public class LagStats {
                     int d = zt.getDayOfMonth();
                     int mm= zt.getMonthValue();
                     int y = zt.getYear();
-                    sec = new Second(s, m, h, d, mm, y);
-                    ts.add(sec, lag);
+                    Second sec = new Second(s, m, h, d, mm, y);
+                    ts.add(sec, le.lag);
                     /*Данные лагов имеют природу резких всплесков, а не графика
                     где точки между разными данными соеденены. поэтому добавляю
                     до и после значения привязку к baseline - 50 мс на один тик */
@@ -183,19 +181,9 @@ public class LagStats {
                     ts.add(sec.previous(), 50);
 
                     //draw baseline 2 point
-                    if (first) {
-                        first = false;
-                        tsbaseline.add(sec.previous(), 50);
-                        if (out != null && out.length > 0) {
-                            out[0] = time;
-                        }
+                    if (i == 0 || i == lasti) {
+                        tsbaseline.add(sec, 50);
                     }
-                }
-                //последняя точка для baseline - черта нормы
-                tsbaseline.add(sec.next(), 50);
-                //время последне
-                if (out != null && out.length > 1) {
-                    out[1] = lastPointTime;
                 }
 
                 //первый граффик будет иметь зелёный цвет задаётся в ChartThemes
