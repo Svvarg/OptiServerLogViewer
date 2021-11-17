@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chats Server Statistics and Tick Lags</title>
+        <meta charset="UTF-8">
+        <link rel="stylesheet" href="style.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+        <script type="text/javascript">
+            google.charts.load('current', {'packages': ['corechart']});
+            google.charts.setOnLoadCallback(drawChart);
+
+            function drawChart() {
+                var data = new google.visualization.DataTable();
+                fillData(data);
+
+                var options = {
+                    title: 'Server Statistics',
+                    //override css
+                    width: 900,
+                    height: 600,
+                    hAxis: {
+                        title: 'Time'
+                        //,gridlines: {count: 30}
+                    },
+                    vAxis: {
+                        title: 'Values',
+                        //gridlines: {color: 'none'},
+                        minValue: 0
+                    },
+                    seriesType: 'lines',
+                    series: {5: {type: 'bars'}}
+                };
+
+                //LineChart
+                var chart = new google.visualization.ComboChart(document.getElementById('chart_div'));
+                chart.draw(data, options);
+            }
+            
+            //#DATA_BEGIN
+            function fillData(data) {
+                data.addColumn('datetime', 'Date');
+                data.addColumn('number', 'value_1');
+                data.addColumn('number', 'value_2');
+                
+                data.addRows([
+                    [new Date(1485097200000), 22.5, 33],
+                    [new Date(1485098100000), 23.8, 44],
+                    [new Date(1485099000000), 24.2, 34],
+                    [new Date(1485100000000), 24.2, 46]
+                ]);                
+            }
+            //#DATA_END
+
+        </script>
+    </head>
+    <body>
+        <div id="chart_div" class="chart"></div>
+    </body>
+</html>
