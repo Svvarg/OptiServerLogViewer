@@ -3,6 +3,7 @@ package org.swarg.mc.optistats;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Paths;
+import org.jfree.data.time.TimeSeries;
 import org.swarg.cmds.ArgsWrapper;
 
 /**
@@ -164,9 +165,10 @@ public class Viewer {
        ------------------------------------------------------------------- */
     private static final String STATS_USAGE =
               "img  [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y] --start-time L1 --end-time L2\n"
+            + "html [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y] --start-time L1 --end-time L2\n"
             + "view [-in (file-log.bin)] [--start-time L1] [--end-time L2]\n"
             + "[NOTE]: Defaults for -in & -out take from config; Default [-s|--start-time] - StartOfCurrentDay, for [-e|--end-time] - CurrentTime\n";
-
+    //stats
     private Object cmdStats() throws IOException {
         if (w.isHelpCmdOrNoArgs()) {
             return STATS_USAGE;
@@ -174,7 +176,7 @@ public class Viewer {
         Object ans = "UNKNOWN";
         //где лежит бинарный лог с данными
         String defInStats = getProp("inStats", "stats.log.bin");
-        String inname = w.optValueOrDef(defInStats, "-in");
+        String inname = w.optValueOrDef(defInStats, "-in");//path to binarylog
 
         //временное ограничение (на данный момент все данные собираются в один файл)
         long s = w.optValueLongOrDef(Utils.getStartTimeOfCurentDay(), "-s", "--start-time"); //TODO начало текущего дня
@@ -192,10 +194,26 @@ public class Viewer {
 
             int weight = (int) w.optValueLongOrDef(getPropI("statsChartWeight", 1280), "-w", "--weight");
             int height = (int) w.optValueLongOrDef(getPropI("statsChartHeight",  600), "-h", "--height");
-
-            ans = TimingStats.createChartImg(inname, png, weight, height, s, e);
+            TimeSeries ts = null;
+            //для создания графика на котором будет добавлен график лагов
+            if (w.hasOpt("--lags","-l")) {
+                String defInLags = getProp("inLags", "lags.log.bin");
+                String inNameLags = w.optValueOrDef(defInLags, "--lags","-l");
+                height = weight;
+                ts = LagStats.createTimeSeries(LagStats.parseFromBin(inNameLags, s, e),"Lags", 0);
+            }
+            ans = TimingStats.createChartImg(inname, png, weight, height, s, e, ts);
         }
-        
+
+        //stats html
+        //Создание html-страницы с графиком на основе данных о лагах и производительности сервера
+        else if (w.isCmd("html", "h")) {
+            String html = w.optValueOrDef(getProp("outStatsHtml", "stats.html"), "-out");
+            String blLags = w.optValueOrDef(getProp("inLags", "lag.log.bin"), "--lags", "-l");//path to binarylog of lags
+            String blStats = inname;
+            ans = TimingStatsHtmlGen.createHtmlChart(blStats, blLags, html, s, e);
+        }
+
         return ans;
     }
 
