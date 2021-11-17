@@ -10,10 +10,6 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.ZoneId;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtils;
 import org.jfree.chart.JFreeChart;
@@ -151,40 +147,18 @@ public class LagStats {
      * @return
      */
     private static XYDataset createDataset(List<LagEntry> list) {
-        if (list != null && list.size() > 0) {
+        if (list != null && list.size() > 1) {
             try {
 
                 TimeSeriesCollection dataset = new TimeSeriesCollection();
-                TimeSeries ts = new TimeSeries("Lag");
+                TimeSeries ts = createTimeSeries(list, "Lag", -1);//Lag
+                
                 //черта отображающая норму для наглядности.
                 TimeSeries tsbaseline = new TimeSeries("Normal");//Baseline
-                ZoneId zid = ZoneOffset.systemDefault();
-                final int lasti = list.size()-1;
 
-                for (int i = 0; i <= lasti; i++) {
-                    LagEntry le = list.get(i);
-                    final long time = le.time;
-                    //можно ли как-то создавать инстанс секунды без Instant?
-                    ZonedDateTime zt = Instant.ofEpochMilli(time).atZone(zid);//.toLocalDateTime()
-                    int s = zt.getSecond();
-                    int m = zt.getMinute();
-                    int h = zt.getHour();
-                    int d = zt.getDayOfMonth();
-                    int mm= zt.getMonthValue();
-                    int y = zt.getYear();
-                    Second sec = new Second(s, m, h, d, mm, y);
-                    ts.add(sec, le.lag);
-                    /*Данные лагов имеют природу резких всплесков, а не графика
-                    где точки между разными данными соеденены. поэтому добавляю
-                    до и после значения привязку к baseline - 50 мс на один тик */
-                    ts.add(sec.next(), 50);
-                    ts.add(sec.previous(), 50);
-
-                    //draw baseline 2 point
-                    if (i == 0 || i == lasti) {
-                        tsbaseline.add(sec, 50);
-                    }
-                }
+                final int noLag = 50;
+                tsbaseline.add(Utils.getSecondOfMillis(list.get(0).time), noLag);
+                tsbaseline.add(Utils.getSecondOfMillis(list.get(list.size()-1).time), noLag);
 
                 //первый граффик будет иметь зелёный цвет задаётся в ChartThemes
                 dataset.addSeries(tsbaseline);
@@ -198,6 +172,42 @@ public class LagStats {
         return null;
     }
 
+    /**
+     * Создать набор точек для наложения на некий другой график
+     * max - 100%
+     * lag -   x
+     * @param max - максимальное значение к которому нужно смаштабировать значения
+     * лагов (Для того, чтобы 
+     * @return 
+     */
+    public static TimeSeries createTimeSeries(List<LagEntry> list, String name, int max) {
+        if (list != null && list.size() > 0) {
+            try {
+               TimeSeries ts = new TimeSeries(name);//"Lag");
+                final int sz = list.size();
+
+                for (int i = 0; i < sz; i++) {
+                    LagEntry le = list.get(i);
+                    final long time = le.time;
+                    //можно ли как-то создавать инстанс секунды без Instant?
+                    Second sec = Utils.getSecondOfMillis(time);
+                    ts.add(sec, le.lag);
+                    /*Данные лагов имеют природу резких всплесков, а не графика
+                    где точки между разными данными соеденены. поэтому добавляю
+                    до и после значения привязку к baseline - 50 мс на один тик
+                    Возможно это правильнее делать каким-то иным способом - но пока так*/
+                    ts.add(sec.next(), 50);
+                    ts.add(sec.previous(), 50);
+                }
+                //первый граффик будет иметь зелёный цвет задаётся в ChartThemes
+                return ts;
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
+    }
 
 
     // ============================== DEBUG ===============================  \\

@@ -5,10 +5,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import org.jfree.chart.ChartFactory;
@@ -89,20 +85,24 @@ public class TimingStats {
      * @param h
      * @param s startStampTime
      * @param e endStampTime
+     * @param ts дополнительный график добавляется если не null
      * @return
      * @throws IOException
      */
-    public static File createChartImg(String inname, String outname, int w, int h, long s, long e) throws IOException {
+    public static File createChartImg(String inname, String outname, int w, int h, long s, long e, TimeSeries ts) throws IOException {
         Path in = Paths.get(inname);
         if (!Files.exists(in)) {
             throw new IllegalStateException("No input file "+in);
         }
 
+        ChartFactory.setChartTheme(ChartThemes.createDarknessTheme());
         
         List<StatEntry> list = parseFromBin(inname, s, e);
         if (list.size() > 1) {
             XYDataset dataset = createDataset(list);
-            ChartFactory.setChartTheme(ChartThemes.createDarknessTheme());
+            if (ts != null) {
+                ((TimeSeriesCollection)dataset).addSeries(ts);
+            }
 
             final long start = list.get(0).time;
             final long end = list.get(list.size()-1).time;
@@ -110,7 +110,7 @@ public class TimingStats {
 
             JFreeChart chart = ChartFactory.createTimeSeriesChart(
                 "Server Stats",
-                date,       // X-Axis Label
+                date,       //X-Axis Label
                 "Values",   //Y-Axis Label
                 dataset);
 
@@ -136,25 +136,18 @@ public class TimingStats {
             TimeSeries tsEntities= new TimeSeries("Entities");
             TimeSeries tsTiles   = new TimeSeries("Tiles");
 
-            ZoneId zid = ZoneOffset.systemDefault();
-
             for (int i = 0; i < list.size(); i++) {
-                //data
                 StatEntry se = list.get(i);
-                ZonedDateTime zt = Instant.ofEpochMilli(se.time).atZone(zid);//.toLocalDateTime()
-                int s = zt.getSecond();
-                int m = zt.getMinute();
-                int h = zt.getHour();
-                int d = zt.getDayOfMonth();
-                int mm= zt.getMonthValue();
-                int y = zt.getYear();
-                Second sec = new Second(s, m, h, d, mm, y);
+
+                Second sec = Utils.getSecondOfMillis(se.time);
                 tsMemUsed.add(sec, se.memUsed);
-                tsTps.add(sec, (se.tps & 0xFF) * 5 ); //200 -> 20.0  1000 - 20.0
-                tsOnline.add(sec, se.online * 100);   // 1 -> 100,  10 -> 1000 (для лучшей визуалиазции значений на графике)
-                tsChunks.add(sec, se.chunks);
-                tsEntities.add(sec, se.entities);
-                tsTiles.add(sec, se.tiles);
+                //"Масштабирую" Значения для лучшей визуалиазции значений на графике
+                tsTps.    add(sec, (se.tps & 0xFF) * 5 ); //200 -> 20.0  1000 - 20.0
+                tsOnline. add(sec, se.online * 100);   // 1 -> 100,  10 -> 1000
+
+                tsChunks. add(sec, se.chunks);
+                tsTiles.  add(sec, se.tiles);
+                tsEntities.add(sec,se.entities);
             }
             
             dataset.addSeries(tsTps);//Green
