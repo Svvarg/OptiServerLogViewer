@@ -1,9 +1,12 @@
 package org.swarg.mc.optistats;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
+import java.net.URL;
 import java.util.Calendar;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,7 +20,6 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import org.jfree.data.time.Second;
 
 /**
  * 16-11-21
@@ -78,33 +80,6 @@ public class Utils {
         return zts.format(Utils.DF_DATETIME) + " - " +
                 zte.format((zts.getDayOfYear() == zte.getDayOfYear()
                         ? Utils.DF_TIME : Utils.DF_DATETIME));
-    }
-
-    /**
-     * Для JFreeChart из указанного времени получить инстанс Second
-     * @param time
-     * @return
-     */
-    public static Second getSecondOfMillis(long time) {
-        //можно ли как-то создавать инстанс секунды без Instant?
-        ZonedDateTime zt = Instant.ofEpochMilli(time).atZone(ZoneOffset.systemDefault());
-        int s = zt.getSecond();
-        int m = zt.getMinute();
-        int h = zt.getHour();
-        int d = zt.getDayOfMonth();
-        int mm= zt.getMonthValue();
-        int y = zt.getYear();
-        return new Second(s, m, h, d, mm, y);
-    }
-
-    public static String getResourceAsString(String name) {
-        try  {
-            return new String(Files.readAllBytes(Paths.get(Thread.currentThread().getContextClassLoader().getResource(name).toURI())), StandardCharsets.UTF_8);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
     }
 
 

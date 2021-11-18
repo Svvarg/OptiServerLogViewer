@@ -37,36 +37,41 @@ class TimingStatsHtmlGen {
      * @param s startStampTime
      * @param e endStampTime
      */
-    public static Path createHtmlChart(String blStats, String blLags, String html, long s, long e) throws IOException {
+    public static Path createHtmlChart(Path blStats, Path blLags, Path html, long s, long e) throws IOException {
         List<StatEntry> selist = TimingStats.parseFromBin(blStats, s, e);
         List<LagEntry> lelist  = LagStats.parseFromBin(blLags, s, e);
-        String pattern = Utils.getResourceAsString("chartStats.html");
+        String pattern = Config.getResourceAsString("chartStats.html", StandardCharsets.UTF_8);
         //System.out.println(pattern);
         if (pattern != null) {
             int bi = pattern.indexOf("//#DATA_BEGIN");
             int ei = pattern.indexOf("//#DATA_END");
-            Path htmlp = Paths.get(html);
-            Path dir = htmlp.getParent();
+            Path dir = html.getParent();
             if (dir != null && !Files.exists(dir)) {
                 Files.createDirectories(dir);
             }
             StringBuilder data = new StringBuilder();
             data.append(pattern, 0, bi);
-            
-            int i = pattern.indexOf("$DateTime");
+            final String replacedt = "$RDateTime";
+            int i = pattern.indexOf(replacedt);
             String date = Utils.getFormatedTimeInterval(s, e);
-            data.replace(i, i+9, date);
+            data.replace(i, i + replacedt.length(), date);
 
             //create chart-data
             createJSGoogleChartData(selist, lelist, data);
 
             data.append(pattern, ei, pattern.length());
 
-            return Files.write(htmlp, data.toString().getBytes(StandardCharsets.UTF_8));
+            return Files.write(html, data.toString().getBytes(StandardCharsets.UTF_8));
         }
         return null;
     }
 
+    /**
+     * Создание набора данных для JS Google Charts
+     * @param selist
+     * @param lelist
+     * @param sb
+     */
     private static void createJSGoogleChartData(List<StatEntry> selist, List<LagEntry> lelist, StringBuilder sb) {
         final String dac = "data.addColumn('";
         sb.append("function fillDataStats(data){\n");
@@ -80,6 +85,7 @@ class TimingStatsHtmlGen {
         sb.append(dac).append("number',  'Tiles');\n");
 
         sb.append("data.addRows([");
+        if (selist != null) {
             for (int i = 0; i < selist.size(); i++) {
                 StatEntry se = selist.get(i);
                 sb.append("[new Date(").append(se.time).append("),");
@@ -90,6 +96,7 @@ class TimingStatsHtmlGen {
                  sb.append(se.entities).append(",");
                  sb.append(se.tiles).append("],");
             }
+        }
         sb.append("]);\n");
         sb.append("}\n");
 
@@ -99,10 +106,12 @@ class TimingStatsHtmlGen {
         sb.append(dac).append("number',   'lags(ms)');\n");
 
         sb.append("data.addRows([");
-        for (int i = 0; i < lelist.size(); i++) {
-            LagEntry e = lelist.get(i);
-            sb.append("[new Date(").append(e.time).append("),");
-            sb.append(e.lag).append("],");
+        if (lelist != null) {
+            for (int i = 0; i < lelist.size(); i++) {
+                LagEntry e = lelist.get(i);
+                sb.append("[new Date(").append(e.time).append("),");
+                sb.append(e.lag).append("],");
+            }
         }
         sb.append("]);\n");
         sb.append("}");

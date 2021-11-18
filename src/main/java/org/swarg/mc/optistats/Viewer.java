@@ -2,9 +2,11 @@ package org.swarg.mc.optistats;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import org.jfree.data.time.TimeSeries;
 import org.swarg.cmds.ArgsWrapper;
+import org.swarg.mc.optistats.jfreechart.LagStatsJFC;
+import org.swarg.mc.optistats.jfreechart.TimingStatsJFC;
 
 /**
  * 15-11-21
@@ -22,7 +24,7 @@ public class Viewer {
     public static void main(String[] args) {
         new Viewer(args)
                 .init()
-                .performRequest();
+                .performRequests();
     }
 
 
@@ -39,8 +41,33 @@ public class Viewer {
         return this;
     }
 
-    private static final String USAGE = "<help/config/lags> [--config path]";
+    public static final String USAGE = "<help/version/config/lags/stats> [--config path]";
     //если нужно указать конкретный путь к конфигу --config path/to/cnfg.properties
+
+    /**
+     *
+     */
+    public void performRequests() {
+        String[] args = w.getArgs();
+        int b = 0;
+        //String look = java.util.Arrays.asList(args).toString();
+        int i;
+        for (i = 0; i <= args.length; i++) {            
+            if (i == args.length || ":".equals(args[i])) {
+                int len = i - b;
+                String[] args0;
+                //если нет разделителя команд : - ничего не изменять
+                if (!(b == 0 && i == args.length)) {
+                    args0 = new String[len];
+                    System.arraycopy(args, b, args0, 0, len);
+                    //String look0 = java.util.Arrays.asList(args0).toString();
+                    this.w.setArgs(args0);
+                }
+                performRequest();
+                b += len + 1;
+            }
+        }
+    }
 
     /**
      * Выполнение заданной команды
@@ -50,6 +77,9 @@ public class Viewer {
         try {
             if (w.isHelpCmdOrNoArgs()) {
                 ans = USAGE;
+            }
+            else if (w.isCmd("version", "v")) {
+                ans = getConfig().getVersionInfo();
             }
             //показать полный путь к конфигу
             else if (w.isCmd("config", "c")) {
@@ -61,6 +91,13 @@ public class Viewer {
             }
             else if (w.isCmd("stats", "s")) {
                 ans = cmdStats();
+            }
+            //-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=9009
+            else if (w.isCmd("sleep")) {
+                try {
+                    Thread.sleep(w.argI(w.ai++, 5000));
+                    ans = "Done.";
+                }catch (Exception e) {}
             }
             else {
                 ans = "UNKNOWN cmd: "+ w.arg(w.ai) ;
@@ -75,7 +112,7 @@ public class Viewer {
 
 
     private static final String CONFIG_USAGE =
-            "[show-props]";
+            "<path/dirs/prop/show-all-props>";
     /**
      * Данные о конфиге и текущей рабочей директории (для отладки)
      * @param w
@@ -85,13 +122,30 @@ public class Viewer {
         if (w.isHelpCmd()) {
             return CONFIG_USAGE;
         }
+
+        //просто вывести полный путь к конфигу
+        if (w.isCmd("path")) {
+            return config.configFile.toAbsolutePath();
+        }
+        
         StringBuilder sb = new StringBuilder();
-        //текущий рабочий каталог в котором запущено приложение
-        sb.append("pwd: ").append(Paths.get(".").toAbsolutePath()).append('\n');
-        //откуда был взят или где должен лежать конфиг
-        sb.append("cnf: ").append(config.configFile.toAbsolutePath()).append('\n');
+        if (w.noArgs()|| w.isCmd("dirs")) {
+            //текущий рабочий каталог в котором запущено приложение
+            sb.append("pwd: ").append(Paths.get(".").toAbsolutePath()).append('\n');
+            sb.append(" wd: ").append(getConfig().getWorkDir()).append('\n');
+            //откуда был взят или где должен лежать конфиг
+            sb.append("cnf: ").append(config.configFile.toAbsolutePath()).append('\n');
+        }
+
+        //получить значение для одного или несколько указанных свойств
+        else if (w.isCmd("prop", "p")) {
+            while (w.argsRemain() > 0) {
+                String name = w.arg(w.ai++);
+                sb.append(name).append('=').append(config.props.get(name)).append('\n');
+            }
+        }
         //опционально все свойства конфига
-        if (w.isCmd("show-props", "sp")) {
+        else if (w.isCmd("show-all-props", "sap")) {
             sb.append("# Config\n");
             for(Object k : config.props.keySet()) {
                 sb.append(k).append('=').append(config.props.get(k)).append('\n');
@@ -113,30 +167,31 @@ public class Viewer {
         }
         Object ans = "UNKNOWN";
         //где лежит бинарный лог с данными
-        String defInLags = getProp("inLags", "lag.log.bin");
-        String inname = w.optValueOrDef(defInLags, "-in");
+        Path in = getPathByOptOfDef("-in", "inLags", "lag.log.bin");
 
         //временное ограничение (на данный момент все данные собираются в один файл)
-        long s = w.optValueLongOrDef(Utils.getStartTimeOfCurentDay(), "-s", "--start-time"); //TODO начало текущего дня
-        long e = w.optValueLongOrDef(System.currentTimeMillis(), "-e", "--end-time");
+        final long now = System.currentTimeMillis();
+        final long before24h = now - 24*60*60000;
+        long s = w.optValueLongOrDef(before24h, "-s", "--start-time"); //за 24ч до сейчас; old начало текущего дня Utils.getStartTimeOfCurentDay()
+        long e = w.optValueLongOrDef(now, "-e", "--end-time");
 
 
         //create-lag-image
         if (w.isCmd("img", "i")) {
+            checkJFreeChartInClassPath();
             //куда ложить созданную картинку
-            String defOutLagsImp = getProp("outLagsImg", "lag.png");
-            String png = w.optValueOrDef(defOutLagsImp, "-out");
+            Path png = getPathByOptOfDef("-out", "outLagsImg", "lag.png");
 
             int weight = (int) w.optValueLongOrDef(getPropI("lagChartWeight", 960), "-w", "--weight");
             int height = (int) w.optValueLongOrDef(getPropI("lagChartHeight", 400), "-h", "--height");
 
-            ans = LagStats.createChartImg(inname, png, weight, height, s, e);
+            ans = LagStatsJFC.createChartImg(in, png, weight, height, s, e);
         }
 
         //bin-log to text
         else if (w.isCmd("view", "v")) {
             boolean showMillis = w.hasOpt("-sm", "--show-millis");
-            ans = LagStats.getReadable(inname, s, e, showMillis);
+            ans = LagStats.getReadable(in, s, e, showMillis);
         }
 
         //DEBUG Генерация случайного бинарного  лога для испытаний.
@@ -153,11 +208,30 @@ public class Viewer {
                 ans = "Not specified output file. use opt: -out (path)";
             } else {
                 boolean canRewrite = w.hasOpt("-w", "--rewrite-exists");
-                ans = LagStats.genRndLagFile(cnt, outName, canRewrite, getOut(), verbose);
+                Path out = getConfig().getFullPath(outName);
+                ans = LagStats.genRndLagFile(cnt, out, canRewrite, getOut(), verbose);
             }
         }
 
         return ans;
+    }
+
+    /**
+     * Получить путь из опции optName либо дефолтное значение из конфига, либо
+     * если в конфиге ключа с cnfgName нет - def
+     * Пример использования указание входного файлы бинарного лог
+     * -in path 
+     * если опция не указывается в аргументах запуска будет взято значение из 
+     * конфига. Если конфига нет - просанное дефолтное def
+     * @param optName имя опции 
+     * @param cnfgName имя ключа в конфиге для поиска дефолтного значения
+     * @param def дефолтное значение для случая когда данное знение не указано в конфиге
+     * @return 
+     */
+    public Path getPathByOptOfDef(String optName, String cnfgName, String def) {
+        String defInStats = getProp(cnfgName, def);
+        String spath = w.optValueOrDef(defInStats, optName);
+        return getConfig().getFullPath(spath);
     }
 
     /* -------------------------------------------------------------------
@@ -175,42 +249,43 @@ public class Viewer {
         }
         Object ans = "UNKNOWN";
         //где лежит бинарный лог с данными
-        String defInStats = getProp("inStats", "stats.log.bin");
-        String inname = w.optValueOrDef(defInStats, "-in");//path to binarylog
+        Path in = getPathByOptOfDef("-in", "inStats", "stats.log.bin");//path to binarylog
 
         //временное ограничение (на данный момент все данные собираются в один файл)
-        long s = w.optValueLongOrDef(Utils.getStartTimeOfCurentDay(), "-s", "--start-time"); //TODO начало текущего дня
-        long e = w.optValueLongOrDef(System.currentTimeMillis(), "-e", "--end-time");
+        final long now = System.currentTimeMillis();
+        final long before24h = now - 24*60*60000;
+        long s = w.optValueLongOrDef(before24h, "-s", "--start-time"); //за 24ч до сейчас; old начало текущего дня Utils.getStartTimeOfCurentDay()
+        long e = w.optValueLongOrDef(now, "-e", "--end-time");
 
         if (false) {
         }
         // stats view  bin-log to text
         else if (w.isCmd("view", "v")) {
-            ans = TimingStats.getReadable(inname, s, e);
+            ans = TimingStats.getReadable(in, s, e);
         }
         else if (w.isCmd("img", "i")) {
-            String defOutLagsImp = getProp("outStatsImg", "stats.png");
-            String png = w.optValueOrDef(defOutLagsImp, "-out");
+            checkJFreeChartInClassPath();
+
+            Path png = getPathByOptOfDef("-out", "outStatsImg", "stats.png");
 
             int weight = (int) w.optValueLongOrDef(getPropI("statsChartWeight", 1280), "-w", "--weight");
             int height = (int) w.optValueLongOrDef(getPropI("statsChartHeight",  600), "-h", "--height");
-            TimeSeries ts = null;
+            Object/*TimeSeries*/ ts = null;
             //для создания графика на котором будет добавлен график лагов
-            if (w.hasOpt("--lags","-l")) {
-                String defInLags = getProp("inLags", "lags.log.bin");
-                String inNameLags = w.optValueOrDef(defInLags, "--lags","-l");
+            if (w.hasOpt("--lags")) {
+                Path blLags  = getPathByOptOfDef("--lags", "inLags", "lag.log.bin");//path to binarylog of lags
                 height = weight;
-                ts = LagStats.createTimeSeries(LagStats.parseFromBin(inNameLags, s, e),"Lags", 0);
+                ts = LagStatsJFC.createTimeSeries(LagStats.parseFromBin(blLags, s, e), "Lags", 0);
             }
-            ans = TimingStats.createChartImg(inname, png, weight, height, s, e, ts);
+            ans = TimingStatsJFC.createChartImg(in, png, weight, height, s, e, ts);
         }
 
         //stats html
         //Создание html-страницы с графиком на основе данных о лагах и производительности сервера
         else if (w.isCmd("html", "h")) {
-            String html = w.optValueOrDef(getProp("outStatsHtml", "stats.html"), "-out");
-            String blLags = w.optValueOrDef(getProp("inLags", "lag.log.bin"), "--lags", "-l");//path to binarylog of lags
-            String blStats = inname;
+            Path html    = getPathByOptOfDef("-out", "outStatsHtml", "stats.html");//куда сохранять Html
+            Path blLags  = getPathByOptOfDef("--lags", "inLags", "lag.log.bin");//path to binarylog of lags
+            Path blStats = in;
             ans = TimingStatsHtmlGen.createHtmlChart(blStats, blLags, html, s, e);
         }
 
@@ -223,40 +298,41 @@ public class Viewer {
     public Config getConfig() {
         if (this.config == null) {
             String cnfgfile = w.optValue("--config", "-c");
-            this.config = new Config(cnfgfile).reload();
+            this.config = new Config(cnfgfile);
+            this.config.reload();
         }
         return this.config;
     }
 
-    public void setOut(PrintStream out) {
+    public Viewer setOut(PrintStream out) {
         this.getConfig().out = out;
+        return this;
     }
 
     public PrintStream getOut() {
-        return getConfig().out;
+        return getConfig().getOut();
     }
 
 
     public String getProp(String name, String def) {
-        if (getConfig().props == null) {
-            throw new IllegalStateException("No Props!");
-        }
-        String v = this.config.props.getProperty(name);
-        return (v == null || v.isEmpty()) ? def : v;
+        return getConfig().getProp(name, def);
     }
 
     public int getPropI(String name, int def) {
-        if (getConfig().props == null) {
-            throw new IllegalStateException("No Props!");
-        }
-        String v = this.config.props.getProperty(name);
+        return getConfig().getPropI(name, def);
+    }
 
-        try {
-            return Integer.parseInt(v);
-        }
-        catch (Exception e) {
-            return def;
-        }
+    /**
+     * Проверка наличия зависимости в класспафе
+     * И если разрешено через конфиг - динамическая её загрузка
+     */
+    private void checkJFreeChartInClassPath() {
+         if (config != null) {
+             if (config.checkAndLoadDependency("org.jfree.chart.ChartFactory")) {
+                 return;//Ok
+             }
+         }
+         System.exit(-1);
     }
 
 

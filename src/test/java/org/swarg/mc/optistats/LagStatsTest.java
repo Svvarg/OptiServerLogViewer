@@ -1,7 +1,10 @@
 package org.swarg.mc.optistats;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import org.swarg.mc.optistats.jfreechart.LagStatsJFC;
 
 /**
  * 15-11-21
@@ -20,11 +23,11 @@ public class LagStatsTest
     //@Test
     public void testGenRndLagFile() throws Exception {
         System.out.println("genRndLagFile");
-        String log = "lag.log.bin";
+        Path log = Paths.get("lag.log.bin");
         boolean canRewrite = true;
         LagStats.genRndLagFile(96, log, canRewrite, System.out, false);
         //System.out.println(LagStats.getLagReadable(log, 0, 0));//+
-        LagStats.createChartImg(log, "lag.png", 1280, 400, 0, 0);
+        LagStatsJFC.createChartImg(log, Paths.get("lag.png"), 1280, 400, 0, 0);
     }
 
 }
