@@ -3,7 +3,7 @@
     <head>
         <title>Chats Server Statistics and Tick Lags</title>
         <meta charset="UTF-8">
-        <link rel="stylesheet" href="style.css">
+        <!--<link rel="stylesheet" href="style.css">-->
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
         <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
@@ -27,6 +27,9 @@
                 date_formatter.format(joinedData, 0);  // Where 0 is the index of the column
 
                 var stats_colors = ['#32CD32', '#A00000', '#00FFCC', '#87CEEB', '#F4A460', '#6A5ACD'];
+                var intervalDateTime = '$RDateTime';
+                var wHeight = window.outerHeight;//inner
+                var wWidth = window.outerWidth;
 
                 var options = {
                     title: 'Server Stats and Lags',
@@ -34,15 +37,16 @@
                     legend: { position: 'top'},
                     
                     //override css
-                    width: 1640,
-                    height: 1020,
+                    width: wWidth,
+                    height: wHeight,
                     interpolateNulls: true,
                     explorer: {
-                        maxZoomOut: 4,
-                        keepInBounds: true
+                        maxZoomOut: 1.5,
+                        maxZoomIn: .1
+                        //,keepInBounds: true
                     },                    
                     hAxis: {
-                        title: '$DateTime',
+                        title: intervalDateTime,
                         format: 'HH:mm'
                         //,gridlines: {count: 30}
                     },
@@ -68,14 +72,14 @@
                 chartLags.draw(data2, {
                     title: 'Server Tick Lags',
                     legend: { position: 'top'},
-                    width: 1640,
-                    height: 600,
+                    width: wWidth,
+                    height: wHeight,
                     explorer: {
-                        maxZoomOut: 4,
-                        keepInBounds: true
+                        maxZoomOut: 1.5,
+                        maxZoomIn: .1
                     },                    
                     hAxis: {
-                        title: 'DateTime',
+                        title: intervalDateTime,
                         format: 'HH:mm'
                     },
                     vAxis: {
@@ -86,7 +90,7 @@
                     lineWidth: 4,
                     series: {
                         0: { color: '#ff0000' }
-                    },
+                    }
                 });
                 
                 //StatsOnly
@@ -95,14 +99,14 @@
                 chartLags.draw(data1, {
                     title: 'Server Stats',
                     legend: { position: 'top'},
-                    width: 1640,
-                    height: 600,
+                    width: wWidth,
+                    height: wHeight,
                     explorer: {
-                        maxZoomOut: 4,
-                        keepInBounds: true
+                        maxZoomOut: 1.5,
+                        maxZoomIn: .1
                     },                    
                     hAxis: {
-                        title: 'DateTime',
+                        title: intervalDateTime,
                         format: 'HH:mm'
                     },
                     vAxis: {
