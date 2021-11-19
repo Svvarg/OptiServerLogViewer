@@ -28,6 +28,7 @@
 
                 var stats_colors = ['#32CD32', '#A00000', '#00FFCC', '#87CEEB', '#F4A460', '#6A5ACD'];
                 var intervalDateTime = '$RDateTime';
+                var maxOnline = 40;//20+(for tps)
                 var wHeight = window.outerHeight;//inner
                 var wWidth = window.outerWidth;
 
@@ -50,16 +51,23 @@
                         format: 'HH:mm'
                         //,gridlines: {count: 30}
                     },
-                    vAxis: {
-                        title: 'Values',                        
-                        //gridlines: {color: 'none'},
-                        minValue: 0
+                    
+                    vAxes: {
+                        0: {logScale: false, maxValue: maxOnline, title: "Online & TPS", gridlines: {color: 'none'}},
+                        1: {logScale: false, minValue: 0, title: "Values & Lags"}
                     },
+                    
                     seriesType: 'lines',
                     series: {
-                        6: { type: 'bars', color: '#ff0000' }
+                        0: {targetAxisIndex:0},
+                        1: {targetAxisIndex:1},
+                        2: {targetAxisIndex:0},
+                        3: {targetAxisIndex:1},
+                        4: {targetAxisIndex:1},
+                        5: {targetAxisIndex:1},
+                        6: {targetAxisIndex:1, type: 'bars', color: '#ff0000' }
                     },
-                    colors: stats_colors
+                    colors: stats_colors,
                 };
 
                 //LineChart ComboChart
@@ -87,7 +95,6 @@
                         minValue: 0
                     },
                     seriesType: 'bars',
-                    lineWidth: 4,
                     series: {
                         0: { color: '#ff0000' }
                     }
@@ -109,12 +116,19 @@
                         title: intervalDateTime,
                         format: 'HH:mm'
                     },
-                    vAxis: {
-                        title: 'Values',
-                        minValue: 0
+                    vAxes: {
+                        0: {logScale: false, maxValue: maxOnline, title: "Online & TPS", gridlines: {color: 'none'}},
+                        1: {logScale: false, minValue: 0, title: "Values & Lags"}
                     },
-                    lineWidth: 2,
-                    colors: stats_colors
+                    series: {
+                        0: {targetAxisIndex:0},//tps
+                        1: {targetAxisIndex:1},
+                        2: {targetAxisIndex:0},//online
+                        3: {targetAxisIndex:1},
+                        4: {targetAxisIndex:1},
+                        5: {targetAxisIndex:1}
+                    },
+                    colors: stats_colors,
                 });                
             }
             

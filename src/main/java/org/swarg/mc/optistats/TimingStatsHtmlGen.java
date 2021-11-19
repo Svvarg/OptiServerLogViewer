@@ -77,9 +77,10 @@ class TimingStatsHtmlGen {
         sb.append("function fillDataStats(data){\n");
        
         sb.append(dac).append("datetime','DateTime');\n");
-        sb.append(dac).append("number',  'Tps(x100)');\n");
+//        sb.append(dac).append("number',  'Tps(x100)');\n");
+        sb.append(dac).append("number',  'Tps');\n");
         sb.append(dac).append("number',  'UsedMem(Mb)');\n");
-        sb.append(dac).append("number',  'Online(x100)');\n");
+        sb.append(dac).append("number',  'Online');\n");
         sb.append(dac).append("number',  'Chunks');\n");
         sb.append(dac).append("number',  'Entities');\n");
         sb.append(dac).append("number',  'Tiles');\n");
@@ -89,9 +90,9 @@ class TimingStatsHtmlGen {
             for (int i = 0; i < selist.size(); i++) {
                 StatEntry se = selist.get(i);
                 sb.append("[new Date(").append(se.time).append("),");
-                 sb.append((se.tps & 0xFF) * 10).append(","); //200 -> 20.0 2000 -> 20.00
+                 sb.append((se.tps & 0xFF) / 10.0 ).append(","); //200 -> 20.0 2000 -> 20.00
                  sb.append(se.memUsed).append(",");
-                 sb.append(se.online * 100).append(",");//"маштабирование"
+                 sb.append(se.online ).append(",");//"маштабирование"
                  sb.append(se.chunks).append(",");
                  sb.append(se.entities).append(",");
                  sb.append(se.tiles).append("],");

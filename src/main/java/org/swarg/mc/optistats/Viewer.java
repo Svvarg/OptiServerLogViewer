@@ -274,7 +274,8 @@ public class Viewer {
             //для создания графика на котором будет добавлен график лагов
             if (w.hasOpt("--lags")) {
                 Path blLags  = getPathByOptOfDef("--lags", "inLags", "lag.log.bin");//path to binarylog of lags
-                height = weight;
+                //height = weight;
+                //weight *=2;
                 ts = LagStatsJFC.createTimeSeries(LagStats.parseFromBin(blLags, s, e), "Lags", 0);
             }
             ans = TimingStatsJFC.createChartImg(in, png, weight, height, s, e, ts);

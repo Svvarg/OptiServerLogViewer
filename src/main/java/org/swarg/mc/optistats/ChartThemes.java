@@ -19,6 +19,38 @@ public class ChartThemes {
     private static final Color C_W   = new Color(255, 243, 205);
     private static final Color C_T1  = new Color(79,84,92);
 
+    /*Цвета для графиков*/
+    public static final Color[] COLORS  = new Color[] {//Paint
+                    //определяем цвета самих линий графиков
+
+                    Color.decode("0x47D247"),//0 limegreen   tps
+                    Color.decode("0x1AFFD1"),//2 Aqua        online
+                    Color.decode("0xFF5C5C"),//1 pink        memused
+                    Color.decode("0x7FCBEA"),//3 LightBlue   chunks
+                    Color.decode("0xF4A460"),//4 LightBrown  entities
+                    Color.decode("0x7364D0"),//5 феолетовый  tiles
+                    Color.decode("0xCC0000"),//6 red         lags
+
+                    Color.decode("0x32CD32"),//limegreen 	#32CD32 	rgb(50,205,50)
+                    Color.decode("0xA00000"),//Red
+                    Color.decode("0x00FFCC"),//Turquoise
+                    Color.decode("0x87CEEB"),//skyblue 	#87CEEB
+                    Color.decode("0xF4A460"),//sandybrown 	#F4A460 	rgb(244,164,96)
+                    Color.decode("0x6A5ACD"),//slateblue 	#6A5ACD 	rgb(106,90,205)
+                    Color.decode("0xFFFF7F"),
+                    Color.decode("0x4D85A7"),//
+                    Color.decode("0x6681CC"),
+                    Color.decode("0xFF7F7F"),
+                    Color.decode("0xFFFFBF"),
+                    Color.decode("0x99A6CC"),
+                    Color.decode("0xFFBFBF"),
+                    Color.decode("0xA9A938"),
+                    Color.decode("0xFF0000"),//
+                    Color.decode("0x8B4513"),//saddlebrown 	#8B4513 	rgb(139,69,19)
+                    //mediumseagreen 	#3CB371 	rgb(60,179,113)
+                };
+
+
     public static org.jfree.chart.ChartTheme createDarknessTheme() {
         StandardChartTheme theme = new StandardChartTheme("Darkness");
         theme.setTitlePaint(C_W);
@@ -37,26 +69,7 @@ public class ChartThemes {
         theme.setItemLabelPaint(C_W);
         //отображение графика
         theme.setDrawingSupplier(new DefaultDrawingSupplier(
-                new Paint[] {
-                    //определяем цвета самих линий графиков
-                    Color.decode("0x32CD32"),//limegreen 	#32CD32 	rgb(50,205,50)
-                    Color.decode("0xA00000"),//Red
-                    Color.decode("0x00FFCC"),//Turquoise
-                    Color.decode("0x87CEEB"),//skyblue 	#87CEEB
-                    Color.decode("0xF4A460"),//sandybrown 	#F4A460 	rgb(244,164,96)
-                    Color.decode("0x6A5ACD"),//slateblue 	#6A5ACD 	rgb(106,90,205)
-                    Color.decode("0xFFFF7F"),
-                    Color.decode("0x4D85A7"),//
-                    Color.decode("0x6681CC"),
-                    Color.decode("0xFF7F7F"),
-                    Color.decode("0xFFFFBF"),
-                    Color.decode("0x99A6CC"),
-                    Color.decode("0xFFBFBF"),
-                    Color.decode("0xA9A938"),
-                    Color.decode("0xFF0000"),//
-                    Color.decode("0x8B4513"),//saddlebrown 	#8B4513 	rgb(139,69,19)
-                    //mediumseagreen 	#3CB371 	rgb(60,179,113)
-                },
+                COLORS,
                 new Paint[] {Color.decode("0xFFFF00"),
                     Color.decode("0x0036CC")},
                 new Stroke[] {new BasicStroke(2.0f)},
