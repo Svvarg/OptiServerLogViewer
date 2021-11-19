@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
 import org.swarg.mc.optistats.model.LagEntry;
 import org.swarg.mcforge.statistic.StatEntry;
 
@@ -30,38 +31,53 @@ import org.swarg.mcforge.statistic.StatEntry;
 class TimingStatsHtmlGen {
 
     /**
-     *
+     * Генерация
      * @param blStats
      * @param blLags
-     * @param html
+     * @param indexHtml
      * @param s startStampTime
      * @param e endStampTime
      */
-    public static Path createHtmlChart(Path blStats, Path blLags, Path html, long s, long e) throws IOException {
+    public static Path createHtmlChart(Path blStats, Path blLags, Path indexHtml, long s, long e) throws IOException {
+        Objects.requireNonNull(indexHtml, "html index or directory");
+
         List<StatEntry> selist = TimingStats.parseFromBin(blStats, s, e);
         List<LagEntry> lelist  = LagStats.parseFromBin(blLags, s, e);
-        String pattern = Config.getResourceAsString("chartStats.html", StandardCharsets.UTF_8);
+        String htmlBase = Config.getResourceAsString("chartStats.html", StandardCharsets.UTF_8);
+        Path dir;
+        if (Files.isDirectory(indexHtml)) {
+            dir = indexHtml;
+            indexHtml = dir.resolve("index.html");
+        } else {
+            dir = indexHtml.getParent();
+        }
+        //если не указан полный путь а только имя файла в текущем каталоге для indexHtml - выдаст null
+        Path jsDir = dir == null ? Paths.get("js") : dir.resolve("js");
+        if (!Files.exists(jsDir)) {
+            Files.createDirectories(jsDir);
+        }
+
+        //копирование индекс-файла из ресурсов в указанный каталог
+        Files.write(indexHtml, htmlBase.getBytes(StandardCharsets.UTF_8));
+
+        String js = Config.getResourceAsString("js/chart.js", StandardCharsets.UTF_8);
         //System.out.println(pattern);
-        if (pattern != null) {
-            int bi = pattern.indexOf("//#DATA_BEGIN");
-            int ei = pattern.indexOf("//#DATA_END");
-            Path dir = html.getParent();
-            if (dir != null && !Files.exists(dir)) {
-                Files.createDirectories(dir);
-            }
+        if (js != null) {
+            int bi = js.indexOf("//#DATA_BEGIN");
+            int ei = js.indexOf("//#DATA_END");
             StringBuilder data = new StringBuilder();
-            data.append(pattern, 0, bi);
+            data.append(js, 0, bi);
             final String replacedt = "$RDateTime";
-            int i = pattern.indexOf(replacedt);
+            int i = js.indexOf(replacedt);
             String date = Utils.getFormatedTimeInterval(s, e);
             data.replace(i, i + replacedt.length(), date);
 
             //create chart-data
             createJSGoogleChartData(selist, lelist, data);
 
-            data.append(pattern, ei, pattern.length());
+            data.append(js, ei, js.length());
 
-            return Files.write(html, data.toString().getBytes(StandardCharsets.UTF_8));
+            return Files.write(jsDir.resolve("chart.js"), data.toString().getBytes(StandardCharsets.UTF_8));
         }
         return null;
     }
