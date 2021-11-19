@@ -16,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -150,7 +151,9 @@ public class Utils {
                 if (is == null) {
                     throw new FileNotFoundException(name);
                 }
-                long sz = Files.copy(is, dst);
+                long sz = Files.copy(is, dst,
+                        //StandardCopyOption.COPY_ATTRIBUTES,
+                        StandardCopyOption.REPLACE_EXISTING);
                 if (out != null) {
                     out.println("[WRITE]: " + dst + " " + sz);
                 }
