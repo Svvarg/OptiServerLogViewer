@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Chats Server Statistics and Tick Lags</title>
+        <title>Server Statistics</title>
         <meta charset="UTF-8">
         <!--<link rel="stylesheet" href="style.css">-->
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-        <script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.slim.min.js"></script>
+        <link rel="icon" type="image/x-icon" href="favicon.ico">
+        <!--<script type="text/javascript" src="https://code.jquery.com/jquery-3.6.0.slim.min.js"></script>-->
         <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
         <script src="js/chart.js"></script>
     </head>
     <body>
-        <!--<div id="chart_div" class="chart"></div>-->
-        <div id="chart_div"></div>
-        <div id="chart_lags"></div>
-        <div id="chart_stats"></div>        
+        <div id="charts">
+            <h2></h2>
+            <div id="chart_stats_lags"></div>
+            <div id="chart_lags"></div>
+            <div id="chart_stats"></div>
+        </div>
     </body>
 </html>

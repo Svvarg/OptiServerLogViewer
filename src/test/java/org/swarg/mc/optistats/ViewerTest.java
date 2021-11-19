@@ -40,7 +40,7 @@ public class ViewerTest {
     }
 
     /*Для ручной проверки команд*/
-    @Test
+    //@Test
     public void test_Cmd() {
         System.out.println("Cmd");
                 //debug default command
@@ -57,7 +57,7 @@ public class ViewerTest {
                     //"stats", "view"
                     //"stats", "img"
                     //"stats", "img", "--lags"
-                    "stats", "html", "--lags"
+                    "stats", "update", "--lags"
                 };
             if (cmd.length > 0) {
                 Viewer.main(cmd);
@@ -65,7 +65,7 @@ public class ViewerTest {
         }
         
         if (0==0) {
-            Viewer.main(new String[]{"stats", "html", "--config", config});
+            Viewer.main(new String[]{"stats", "update", "--last-hours", "24", "--config", config});
             //Viewer.main(("stats img : stats html : lags img : --config " + config).split(" "));
             //Viewer.main(("stats img --lags --config " + config).split(" "));
             //Viewer.main(new String[]{"stats", "img"});

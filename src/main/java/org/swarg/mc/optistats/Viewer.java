@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Date;
 import org.swarg.cmds.ArgsWrapper;
 import org.swarg.mc.optistats.jfreechart.LagStatsJFC;
 import org.swarg.mc.optistats.jfreechart.TimingStatsJFC;
@@ -238,10 +239,11 @@ public class Viewer {
                                   Stats
        ------------------------------------------------------------------- */
     private static final String STATS_USAGE =
-              "img  [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y] --start-time L1 --end-time L2\n"
-            + "html [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y] --start-time L1 --end-time L2\n"
-            + "view [-in (file-log.bin)] [--start-time L1] [--end-time L2]\n"
-            + "[NOTE]: Defaults for -in & -out take from config; Default [-s|--start-time] - StartOfCurrentDay, for [-e|--end-time] - CurrentTime\n";
+              "img    [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y]\n"
+            + "update [-in (file-log.bin)] [--lags (lags-log.bin)] [-out (html)]\n"
+            + "view   [-in (file-log.bin)] \n"
+            + "For specify DateTime range use: --start-time (L) --end-time (L) --last-hours (I)"
+            + "[NOTE]: Defaults for -in & -out take from config; Default [-s|--start-time] -24hours(or --last-hours N) from Now, for [-e|--end-time] - CurrentTime\n";
     //stats
     private Object cmdStats() throws IOException {
         if (w.isHelpCmdOrNoArgs()) {
@@ -253,7 +255,11 @@ public class Viewer {
 
         //временное ограничение (на данный момент все данные собираются в один файл)
         final long now = System.currentTimeMillis();
-        final long before24h = now - 24*60*60000;
+        long lasthours = w.optValueLongOrDef(24, "--last-hours", "-lh");
+        if (lasthours > 24 * 7) {
+            lasthours = 24 * 7 ;//return "limit 7 days";//TODO добавить поддержку указания даты в читабельном виде (например для такого-то там дня)
+        }
+        final long before24h = now - lasthours *60*60000;
         long s = w.optValueLongOrDef(before24h, "-s", "--start-time"); //за 24ч до сейчас; old начало текущего дня Utils.getStartTimeOfCurentDay()
         long e = w.optValueLongOrDef(now, "-e", "--end-time");
 
@@ -283,11 +289,16 @@ public class Viewer {
 
         //stats html
         //Создание html-страницы с графиком на основе данных о лагах и производительности сервера
-        else if (w.isCmd("html", "h")) {
+        else if (w.isCmd("update", "u")) {
+            Path blStats = in;//getPathByOptOfDef("-in", "inStats", "stats.log.bin");//path to binarylog
             Path html    = getPathByOptOfDef("-out", "outStatsHtml", "stats.html");//куда сохранять Html
             Path blLags  = getPathByOptOfDef("--lags", "inLags", "lag.log.bin");//path to binarylog of lags
-            Path blStats = in;
-            ans = TimingStatsHtmlGen.createHtmlChart(blStats, blLags, html, s, e);
+            /*если ключ не указан и нужных файлов нет - скопирует из ресурсов jar`ника
+            если файлы уже существуют и опция не задана - не тронет*/
+            boolean replace = w.hasOpt("--deploy-html","-d");
+            RawChartData.deployHtmlFromResources(html, replace, getOut());
+            
+            ans = RawChartData.createRawDataForJSChart(blStats, blLags, html, s, e, getOut());
         }
 
         return ans;
