@@ -6,19 +6,72 @@ import java.util.Random;
 import java.util.List;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
 import org.swarg.common.Binary;
 import org.swarg.common.Strings;
-import org.swarg.mc.optistats.model.LagEntry;
+import org.swarg.mcforge.statistic.LagEntry;
 
 /**
  * 15-11-21
  * @author Swarg
  */
 public class LagStats {
+
+    public static List<LagEntry> parseFromBin(Path in, long startStampTime, long endStampTime) {
+        try {
+            long fsz = Files.size(in);
+
+            List<LagEntry> list = new ArrayList<>();
+            final int oesz = LagEntry.getSerializeSize();
+            int cnt = 8192 / oesz;//сколько записей за 1 раз будем читать с файла
+            int bufflen = cnt * oesz;
+            ByteBuffer buf = ByteBuffer.allocate(bufflen);
+
+            try (FileChannel fc = FileChannel.open(in, StandardOpenOption.READ)) {
+                long off = fsz - bufflen;
+                if (off < 0) {
+                    off = 0;
+                }
+                while (off >= 0) {
+                    buf.clear();
+                    //do {r = fc.read(buf, off);} while (buf.hasRemaining());
+                    final int r = fc.read(buf, off);//? может ли бысть здесь случай прочтения байтов не кратных размеру обьекта?
+
+                    //всё содержимое блока подходит по времени начала
+                    boolean inrange = false;
+                    int offi = r;
+                    final byte[] ba = buf.array();
+                    while ((offi-=oesz) >= 0) {
+                        final long time = buf.getLong(offi);
+                        if (Utils.isTimeInRange(time, startStampTime, endStampTime )) {
+                            list.add(new LagEntry(ba, offi));
+                            inrange = true;
+                        }
+                    }
+                    /*если ни одна запись не подошла по времени значит произошел
+                    выход за рамки StartStampTime - выходим*/
+                    if (!inrange) {
+                        break;
+                    }
+                    off -= bufflen;
+                }
+
+            }//finally fc.close();
+
+            Collections.reverse(list);
+            return list;
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 
     /**
      * Построить лист значений входящих в требуемые временные рамки
@@ -28,7 +81,8 @@ public class LagStats {
      * @param endStampTime
      * @return
      */
-    public static List<LagEntry> parseFromBin(Path in, long startStampTime, long endStampTime) {
+    @Deprecated
+    public static List<LagEntry> parseFromBinFull(Path in, long startStampTime, long endStampTime) {
         try {
             List<LagEntry> list = new ArrayList<>();
             byte[] ba = Files.readAllBytes(in);
@@ -54,7 +108,7 @@ public class LagStats {
 
     /**
      * Преобразовать бинарный лог в читаемое представление
-     * @param inname
+     * @param in
      * @param startStampTime
      * @param endStampTime
      * @param showMillis показывать и timeMillis
@@ -91,7 +145,7 @@ public class LagStats {
      * нескольких дней. Из которого в дальнейшем нужно будет взять только значения
      * для текущего дня.
      * @param eCount количество генерируемых записей если меньше 0 возьмёт 96
-     * @param filename куда записать
+     * @param file куда записать
      * @param canRewrite переписывать для существующего файла (чтобы не затереть
      * случайно реальный лог)
      * @param out
