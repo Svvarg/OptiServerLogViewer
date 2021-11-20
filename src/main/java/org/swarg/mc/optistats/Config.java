@@ -1,7 +1,5 @@
 package org.swarg.mc.optistats;
 
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import org.swarg.common.AbstractAppConfig;
 
@@ -13,23 +11,17 @@ public class Config extends AbstractAppConfig {
 
     public Config(String configFile) {
         super(configFile);
+        this.defConfigDirInUserHome = "mcs-stats";
     }
 
     @Override
     protected boolean createDefaultConfig(Path path) {
-        try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream("DefaultConfig.properties")) {
-            long sz = Files.copy(is, configFile);
-            is.close();
-            return true;
+        try {
+            return AbstractAppConfig.copyFromResource(getDefaultConfigName(), path, false, this.out);
         }
         catch (Exception e) {
             return false;
         }
     }
-
-
-
-
-
 
 }

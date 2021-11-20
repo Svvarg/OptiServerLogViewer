@@ -1,22 +1,13 @@
 package org.swarg.mc.optistats;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.io.RandomAccessFile;
-import java.net.URL;
 import java.util.Calendar;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -145,22 +136,4 @@ public class Utils {
         return null;
     }
 
-    public static boolean copyFromResource(String name, Path dst, boolean replace, PrintStream out) throws IOException {
-        if (!Files.exists(dst) || replace) {
-            try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(name)) {//"/"
-                if (is == null) {
-                    throw new FileNotFoundException(name);
-                }
-                long sz = Files.copy(is, dst,
-                        //StandardCopyOption.COPY_ATTRIBUTES,
-                        StandardCopyOption.REPLACE_EXISTING);
-                if (out != null) {
-                    out.println("[WRITE]: " + dst + " " + sz);
-                }
-                return true;
-            }
-        }
-        out.println("[Exists]: " + dst);
-        return false;
-    }
 }
