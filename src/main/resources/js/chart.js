@@ -16,7 +16,7 @@ function parseAndAnddColumns(lines, dataTable) {
 }
 
 function fetchLagsAndCallBack(callback) {    
-    fetch('lags.bin')
+    fetch('lags.txt', {cache: "no-cache"})
             .then(response => response.text())
             .then(data => {
                 //console.log(data);
@@ -49,7 +49,7 @@ function fetchLagsAndCallBack(callback) {
 
 //"callback"
 function fetchStatsAndDraw(lagsDataTable) {
-    fetch('stats.bin')
+    fetch('stats.txt', {cache: "no-cache"})
             .then(response => response.text())
             .then(data => {
                 //console.log(data);
