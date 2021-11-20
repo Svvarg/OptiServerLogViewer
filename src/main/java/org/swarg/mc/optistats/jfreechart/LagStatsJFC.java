@@ -20,7 +20,7 @@ import org.jfree.data.xy.XYDataset;
 
 import org.swarg.mc.optistats.ChartThemes;
 import org.swarg.mc.optistats.Utils;
-import org.swarg.mc.optistats.model.LagEntry;
+import org.swarg.mcforge.statistic.LagEntry;
 import static org.swarg.mc.optistats.LagStats.parseFromBin;
 
 /**
