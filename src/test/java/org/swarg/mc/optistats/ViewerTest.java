@@ -40,11 +40,12 @@ public class ViewerTest {
     }
 
     /*Для ручной проверки команд*/
-    //@Test
+    @Test
     public void test_Cmd() {
         System.out.println("Cmd");
                 //debug default command
-        String config = System.getProperty("user.home")+"/stats/DefaultConfig.properties";
+        //Теперь по умолчанию если конфига рядом нет - ищет в ~/Config.defConfigDirInUserHome
+        //String config = System.getProperty("user.home")+"/mcs-stats/DefaultConfig.properties";
 
         if (0==1) {
             String[] cmd = new String[] {
@@ -65,7 +66,8 @@ public class ViewerTest {
         }
         
         if (0==0) {
-            Viewer.main(new String[]{"stats", "update", "--last-hours", "24", "--config", config});
+            //Viewer.main(new String[]{"config"});
+            Viewer.main(new String[]{"stats", "update", "--last-hours", "24"});//"--config", config
             //Viewer.main(("stats img : stats html : lags img : --config " + config).split(" "));
             //Viewer.main(("stats img --lags --config " + config).split(" "));
             //Viewer.main(new String[]{"stats", "img"});

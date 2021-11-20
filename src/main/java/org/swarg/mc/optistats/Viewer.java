@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Date;
 import org.swarg.cmds.ArgsWrapper;
 import org.swarg.mc.optistats.jfreechart.LagStatsJFC;
 import org.swarg.mc.optistats.jfreechart.TimingStatsJFC;
@@ -126,7 +125,7 @@ public class Viewer {
 
         //просто вывести полный путь к конфигу
         if (w.isCmd("path")) {
-            return config.configFile.toAbsolutePath();
+            return config.getConfigFile().toAbsolutePath();
         }
         
         StringBuilder sb = new StringBuilder();
@@ -135,7 +134,7 @@ public class Viewer {
             sb.append("pwd: ").append(Paths.get(".").toAbsolutePath()).append('\n');
             sb.append(" wd: ").append(getConfig().getWorkDir()).append('\n');
             //откуда был взят или где должен лежать конфиг
-            sb.append("cnf: ").append(config.configFile.toAbsolutePath()).append('\n');
+            sb.append("cnf: ").append(config.getConfigFile().toAbsolutePath()).append('\n');
         }
 
         //получить значение для одного или несколько указанных свойств
@@ -311,6 +310,7 @@ public class Viewer {
         if (this.config == null) {
             String cnfgfile = w.optValue("--config", "-c");
             this.config = new Config(cnfgfile);
+            this.config.verbose = w.hasOpt("--verbose-startup");
             this.config.reload();
         }
         return this.config;
