@@ -264,8 +264,11 @@ public class Viewer {
     /* -------------------------------------------------------------------
                                   Stats
        ------------------------------------------------------------------- */
+    private static final String STATS_UPDATE_USAGE =
+              "update [-in (stats-log.bin)] [--lags (lags-log.bin)] [--cleanups (Def:inCleanups)] [-out (html)]\n"
+            + " - Update Data for Charts  [-d|--deploy-html - flag for (Re)Deploy html-files]\n";
     private static final String STATS_USAGE =
-              "update [-in (stats-log.bin)] [--lags (lags-log.bin)] [-out (html)] - Update Data for charts [Deploy html-files]\n"
+              STATS_UPDATE_USAGE
             + "img    [-in (stats-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y]\n"
             + "view   [-in (stats-log.bin)] \n"
             +  DEFINE_DATETIME_RANGE_USAGE //--start-time --end-time
@@ -307,15 +310,19 @@ public class Viewer {
         //stats html
         //Создание html-страницы с графиком на основе данных о лагах и производительности сервера
         else if (w.isCmd("update", "u")) {
+            if (w.isHelpCmd()) {
+                return STATS_UPDATE_USAGE;
+            }
             Path blStats = in;//getPathByOptOfDef("-in", "inStats", "stats.log.bin");//path to binarylog
             Path html    = getPathByOptOfDef("-out", "outStatsHtml", "stats.html");//куда сохранять Html
             Path blLags  = getPathByOptOfDef("--lags", "inLags", "lag.log.bin");//path to binarylog of lags
+            Path blClnps = getPathByOptOfDef("--cleanups", "inCleanups", "cleanups.log.bin");
             /*если ключ не указан и нужных файлов нет - скопирует из ресурсов jar`ника
             если файлы уже существуют и опция не задана - не тронет*/
             boolean replace = w.hasOpt("--deploy-html","-d");
             RawChartData.deployHtmlFromResources(html, replace, getOut());
             
-            ans = RawChartData.createRawDataForJSChart(blStats, blLags, html, this.startTime, this.endTime, getOut());
+            ans = RawChartData.createRawDataForJSChart(blStats, blLags, blClnps, html, this.startTime, this.endTime, getOut());
         }
 
         return ans;

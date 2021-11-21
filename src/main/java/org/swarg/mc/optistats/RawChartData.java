@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
+import org.swarg.mcforge.statistic.CleanupEntry;
 import org.swarg.mcforge.statistic.LagEntry;
 import org.swarg.mcforge.statistic.StatEntry;
 
@@ -75,17 +76,19 @@ public class RawChartData {
     /**
      * создание stats.bin lags.bin для js-скрипта подтягивающего данные для
      * рендеринга графиков
-     * @param blStats где лежат бинарные логи
-     * @param blLags
+     * @param blStats где лежат бинарные логи собираемой статистики
+     * @param blLags  выявленных лагов
+     * @param blCleanups прошедших очисток
      * @param indexHtml корень html куда ложить создаваемые для запроса через js файлы
      * @param s
      * @param e
      * @param out
      * @return
      */
-    public static boolean createRawDataForJSChart(Path blStats, Path blLags, Path indexHtml, long s, long e, PrintStream out) throws IOException {
+    public static boolean createRawDataForJSChart(Path blStats, Path blLags, Path blCleanups, Path indexHtml, long s, long e, PrintStream out) throws IOException {
         List<StatEntry> selist = TimingStats.parseFromBin(blStats, s, e);
         List<LagEntry> lelist  = LagStats.parseFromBin(blLags, s, e);
+        List<CleanupEntry> celist  = CleanupStats.parseFromBin(blCleanups, s, e);
         Path dir;
         if (Files.isDirectory(indexHtml)) {
             dir = indexHtml;
@@ -99,14 +102,21 @@ public class RawChartData {
         StringBuilder sb = new StringBuilder();
         Path p1 = dir.resolve("stats.txt");
         Path p2 = dir.resolve("lags.txt");
+        Path p3 = dir.resolve("cleanups.txt");
 
         p1 = Files.write(p1, getRawStatsData(selist, sb).toString().getBytes(StandardCharsets.UTF_8));
         p2 = Files.write(p2, getRawLagsData(lelist, sb).toString().getBytes(StandardCharsets.UTF_8));
+        p3 = Files.write(p3, getRawCleanupsData(celist, sb).toString().getBytes(StandardCharsets.UTF_8));
         if (out != null) {
-            out.println("[WRITE]: " + p1);
-            out.println("[WRITE]: " + p2);
+            out.println("[WRITE]: " + p1 + " " + getListSize(selist));
+            out.println("[WRITE]: " + p2 + " " + getListSize(lelist));
+            out.println("[WRITE]: " + p3 + " " + getListSize(celist));
         }
         return true;
+    }
+
+    public static int getListSize(List l) {
+        return l == null ? -1 : l.size();
     }
 
     /**
@@ -142,12 +152,28 @@ public class RawChartData {
         sb.append("datetime:DateTime number:Lags\n");
         if (lelist != null) {
             for (int i = 0; i < lelist.size(); i++) {
-                if (i > 0) {
-                    sb.append('\n');
-                }
                 LagEntry e = lelist.get(i);
                 sb.append(e.time).append(' ');
-                sb.append(e.lag);
+                sb.append(e.lag).append('\n');
+            }
+        }
+        return sb;
+    }
+
+    /**
+     * Для очисток в графиках пока будет использоваться только время инициализации
+     * и сколько она длилась. Для отображение были ли они и когда.
+     * @param celist
+     * @param sb
+     * @return
+     */
+    private static Object getRawCleanupsData(List<CleanupEntry> celist, StringBuilder sb) {
+        sb.setLength(0);
+        sb.append("datetime:DateTime number:Cleanup\n");
+        if (celist != null) {
+            for (int i = 0; i < celist.size(); i++) {
+                CleanupEntry e = celist.get(i);
+                sb.append(e.time).append(' ').append(e.tookMs).append('\n');
             }
         }
         return sb;
