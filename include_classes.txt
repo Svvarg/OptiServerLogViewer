@@ -1,5 +1,6 @@
 org/swarg/mcforge/statistic/StatEntry.class
 org/swarg/mcforge/statistic/LagEntry.class
+org/swarg/mcforge/statistic/CleanupEntry.class
 org/swarg/common/AbstractAppConfig.class
 org/swarg/common/Binary.class
 org/swarg/common/Strings.class
