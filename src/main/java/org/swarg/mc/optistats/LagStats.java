@@ -121,7 +121,7 @@ public class LagStats {
         }
         else {
             final int sz = list.size();
-            StringBuilder sb = new StringBuilder(sz * 116);
+            StringBuilder sb = new StringBuilder(sz * 64);
 
             for (int i = 0; i < sz; i++) {
                 LagEntry le = list.get(i);

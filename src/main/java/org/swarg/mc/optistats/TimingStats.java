@@ -126,21 +126,23 @@ public class TimingStats {
      * @param endStampTime значение timeMillis до которого делать выборку значений
      * @return
      */
-    public static Object getReadable(Path in, long startStampTime, long endStampTime) {
+    public static Object getReadableTable(Path in, long startStampTime, long endStampTime) {
         List<StatEntry> list = parseFromBin(in, startStampTime, endStampTime);
         if (list == null || list.isEmpty()) {
             return "Emtpty for " + in;
         } else {
             final int sz = list.size();
-            StringBuilder sb = new StringBuilder(sz * 116);
+            StringBuilder sb = new StringBuilder(sz * 96);
+            //headers
+            sb.append(StatEntry.getTableHeaders());
 
             for (int i = 0; i < sz; i++) {
                 StatEntry se = list.get(i);
-                se.appendTo(sb).append('\n');
+                se.appendAsTableRow(sb);
             }
             return sb;
         }
     }
 
-    
+
 }
