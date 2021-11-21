@@ -17,6 +17,11 @@ public class Viewer {
     protected ArgsWrapper w;
     protected Config config;
 
+    //временной отрезок для которого делать выборку данных из лога
+    protected long startTime;
+    protected long endTime;
+
+
     /**
      *
      * @param args
@@ -92,6 +97,9 @@ public class Viewer {
             else if (w.isCmd("stats", "s")) {
                 ans = cmdStats();
             }
+            else if (w.isCmd("cleanups", "cl")) {
+                ans = cmdCleanups();
+            }
             //-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=9009
             else if (w.isCmd("sleep")) {
                 try {
@@ -154,11 +162,34 @@ public class Viewer {
         return sb;
     }
 
+    private static final String DEFINE_DATETIME_RANGE_USAGE =
+              "[DATATIME]: to Specify DateTime Range of Data Use:\n"
+            + "[-s|--start-time] (Default: Now - 24hours), [-e|--end-time] - (Default:CurrentTime)\n"
+            + "[--last-hours (Default:24)]\n";
+    /**
+     * [-s|--start-time] - StartOfCurrentDay, for [-e|--end-time] - CurrentTime --last-hours N \n"
+     * @param maxDaysAgo
+     */
+    public void defineDateTimeRange(int maxDaysAgo) {
+        final long now = System.currentTimeMillis();
+        long lasthours = w.optValueLongOrDef(24, "--last-hours", "-lh");
+        if (maxDaysAgo <= 0) {
+            maxDaysAgo = 7;//default
+        }
+        if (lasthours > 24 * maxDaysAgo) {
+            lasthours = 24 * maxDaysAgo ;//return "limit 7 days";//TODO добавить поддержку указания даты в читабельном виде (например для такого-то там дня)
+        }
+        final long before24h = now - lasthours *60*60000;
+        this.startTime = w.optValueLongOrDef(before24h, "-s", "--start-time"); //за 24ч до сейчас; old начало текущего дня Utils.getStartTimeOfCurentDay()
+        this.endTime = w.optValueLongOrDef(now, "-e", "--end-time");
+    }
+
 
     private static final String LAGS_USAGE =
-              "img  [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y] --start-time L1 --end-time L2\n"
-            + "view [-in (file-log.bin)] [--start-time L1] [--end-time L2] [--show-millis]\n"
-            + "[NOTE]: Defaults for -in & -out take from config; Default [-s|--start-time] - StartOfCurrentDay, for [-e|--end-time] - CurrentTime\n"
+              "img  [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y]\n"
+            + "view [-in (file-log.bin)] [--no-millis]\n"
+            + "[NOTE]: Defaults for -in & -out take from Config.inLags;\n"
+            +  DEFINE_DATETIME_RANGE_USAGE
             + "generate [-out ($Config.inLags)] [-w|--rewrite-exists] [--count N Def:96] [--verbose] - [DEBUG] Generate Random Binary LogFile \n";
 
     private Object cmdLags() throws IOException {
@@ -170,11 +201,7 @@ public class Viewer {
         Path in = getPathByOptOfDef("-in", "inLags", "lag.log.bin");
 
         //временное ограничение (на данный момент все данные собираются в один файл)
-        final long now = System.currentTimeMillis();
-        final long before24h = now - 24*60*60000;
-        long s = w.optValueLongOrDef(before24h, "-s", "--start-time"); //за 24ч до сейчас; old начало текущего дня Utils.getStartTimeOfCurentDay()
-        long e = w.optValueLongOrDef(now, "-e", "--end-time");
-
+        defineDateTimeRange(14);
 
         //create-lag-image
         if (w.isCmd("img", "i")) {
@@ -185,13 +212,13 @@ public class Viewer {
             int weight = (int) w.optValueLongOrDef(getPropI("lagChartWeight", 960), "-w", "--weight");
             int height = (int) w.optValueLongOrDef(getPropI("lagChartHeight", 400), "-h", "--height");
 
-            ans = LagStatsJFC.createChartImg(in, png, weight, height, s, e);
+            ans = LagStatsJFC.createChartImg(in, png, weight, height, this.startTime, this.endTime);
         }
 
         //bin-log to text
         else if (w.isCmd("view", "v")) {
-            boolean showMillis = w.hasOpt("-sm", "--show-millis");
-            ans = LagStats.getReadable(in, s, e, showMillis);
+            boolean showMillis = !w.hasOpt("-nm", "--no-millis");
+            ans = LagStats.getReadable(in, this.startTime, this.endTime, showMillis);
         }
 
         //DEBUG Генерация случайного бинарного  лога для испытаний.
@@ -238,11 +265,11 @@ public class Viewer {
                                   Stats
        ------------------------------------------------------------------- */
     private static final String STATS_USAGE =
-              "img    [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y]\n"
-            + "update [-in (file-log.bin)] [--lags (lags-log.bin)] [-out (html)]\n"
-            + "view   [-in (file-log.bin)] \n"
-            + "For specify DateTime range use: --start-time (L) --end-time (L) --last-hours (I)"
-            + "[NOTE]: Defaults for -in & -out take from config; Default [-s|--start-time] -24hours(or --last-hours N) from Now, for [-e|--end-time] - CurrentTime\n";
+              "update [-in (stats-log.bin)] [--lags (lags-log.bin)] [-out (html)] - Update Data for charts [Deploy html-files]\n"
+            + "img    [-in (stats-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y]\n"
+            + "view   [-in (stats-log.bin)] \n"
+            +  DEFINE_DATETIME_RANGE_USAGE //--start-time --end-time
+            + "[NOTE]: Defaults for -in/-out take from Config.inStats/outStatsImg/outStatsHtml;\n";
     //stats
     private Object cmdStats() throws IOException {
         if (w.isHelpCmdOrNoArgs()) {
@@ -253,20 +280,11 @@ public class Viewer {
         Path in = getPathByOptOfDef("-in", "inStats", "stats.log.bin");//path to binarylog
 
         //временное ограничение (на данный момент все данные собираются в один файл)
-        final long now = System.currentTimeMillis();
-        long lasthours = w.optValueLongOrDef(24, "--last-hours", "-lh");
-        if (lasthours > 24 * 7) {
-            lasthours = 24 * 7 ;//return "limit 7 days";//TODO добавить поддержку указания даты в читабельном виде (например для такого-то там дня)
-        }
-        final long before24h = now - lasthours *60*60000;
-        long s = w.optValueLongOrDef(before24h, "-s", "--start-time"); //за 24ч до сейчас; old начало текущего дня Utils.getStartTimeOfCurentDay()
-        long e = w.optValueLongOrDef(now, "-e", "--end-time");
+        this.defineDateTimeRange(7);
 
-        if (false) {
-        }
         // stats view  bin-log to text
-        else if (w.isCmd("view", "v")) {
-            ans = TimingStats.getReadable(in, s, e);
+        if (w.isCmd("view", "v")) {
+            ans = TimingStats.getReadableTable(in, this.startTime, this.endTime);
         }
         else if (w.isCmd("img", "i")) {
             checkJFreeChartInClassPath();
@@ -281,9 +299,9 @@ public class Viewer {
                 Path blLags  = getPathByOptOfDef("--lags", "inLags", "lag.log.bin");//path to binarylog of lags
                 //height = weight;
                 //weight *=2;
-                ts = LagStatsJFC.createTimeSeries(LagStats.parseFromBin(blLags, s, e), "Lags", 0);
+                ts = LagStatsJFC.createTimeSeries(LagStats.parseFromBin(blLags, this.startTime, this.endTime), "Lags", 0);
             }
-            ans = TimingStatsJFC.createChartImg(in, png, weight, height, s, e, ts);
+            ans = TimingStatsJFC.createChartImg(in, png, weight, height, this.startTime, this.endTime, ts);
         }
 
         //stats html
@@ -297,11 +315,34 @@ public class Viewer {
             boolean replace = w.hasOpt("--deploy-html","-d");
             RawChartData.deployHtmlFromResources(html, replace, getOut());
             
-            ans = RawChartData.createRawDataForJSChart(blStats, blLags, html, s, e, getOut());
+            ans = RawChartData.createRawDataForJSChart(blStats, blLags, html, this.startTime, this.endTime, getOut());
         }
 
         return ans;
     }
+
+    
+    private static final String CLEANUPS_USAGE = 
+            "view [-in (Def:Config.inCleanups)]\n" +
+            DEFINE_DATETIME_RANGE_USAGE;
+
+    private Object cmdCleanups() {
+        if (w.isHelpCmdOrNoArgs()) {
+            return CLEANUPS_USAGE;
+        }
+        Object ans = "UNKNOWN";
+        //где лежит бинарный лог с данными
+        Path in = getPathByOptOfDef("-in", "inCleanups", "cleanup-log.bin");
+
+        defineDateTimeRange(14);
+
+        //Текстовая Таблица срабатываний очисток
+        if (w.isCmd("view", "v")) {
+            ans = CleanupStats.getReadableTable(in, this.startTime, this.endTime);
+        }
+        return ans;
+    }
+
 
 
     // ------------------------------------------------------------------- \\
