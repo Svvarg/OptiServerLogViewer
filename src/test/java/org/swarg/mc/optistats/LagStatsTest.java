@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.junit.Test;
-import org.swarg.mcforge.statistic.LagEntry;
+import org.swarg.mcforge.statistic.TShEntry;
 import org.swarg.mc.optistats.jfreechart.LagStatsJFC;
 import static org.junit.Assert.*;
 
@@ -40,13 +40,13 @@ public class LagStatsTest {
 
         Path in = tmp;
 
-        List<LagEntry> listExp = LagStats.parseFromBinFull(in, s, e);
-        List<LagEntry> listRes = LagStats.parseFromBin(in, s, e);
+        List<TShEntry> listExp = LagStats.parseFromBinFull(in, s, e);
+        List<TShEntry> listRes = LagStats.parseFromBin(in, s, e);
 
         assertEquals(listExp.size(), listRes.size());
         for (int i = 0; i < listRes.size(); i++) {
-            LagEntry exp = listExp.get(i);
-            LagEntry res = listRes.get(i);
+            TShEntry exp = listExp.get(i);
+            TShEntry res = listRes.get(i);
             if (!exp.equals(res)) {
                 System.out.println(exp);
                 System.out.println(res);
@@ -65,11 +65,11 @@ public class LagStatsTest {
      * @throws IOException
      */
     public static void genLagsFile(Path out, long etime, int count, StringBuilder sb) throws IOException {
-        final int szo = LagEntry.getSerializeSize();
+        final int szo = TShEntry.getSerializeSize();
         byte[] ba = new byte[count * szo];
 
         int i = count;
-        LagEntry e = new LagEntry();
+        TShEntry e = new TShEntry();
         long time = etime;
         while (--i >= 0) {
             int off = i * szo;

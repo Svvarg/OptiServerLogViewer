@@ -14,7 +14,7 @@ import java.nio.file.StandardOpenOption;
 
 import org.swarg.common.Binary;
 import org.swarg.common.Strings;
-import org.swarg.mcforge.statistic.LagEntry;
+import org.swarg.mcforge.statistic.TShEntry;
 
 /**
  * 15-11-21
@@ -22,12 +22,12 @@ import org.swarg.mcforge.statistic.LagEntry;
  */
 public class LagStats {
 
-    public static List<LagEntry> parseFromBin(Path in, long startStampTime, long endStampTime) {
+    public static List<TShEntry> parseFromBin(Path in, long startStampTime, long endStampTime) {
         try {
             long fsz = Files.size(in);
 
-            List<LagEntry> list = new ArrayList<>();
-            final int oesz = LagEntry.getSerializeSize();
+            List<TShEntry> list = new ArrayList<>();
+            final int oesz = TShEntry.getSerializeSize();
             int cnt = 8192 / oesz;//сколько записей за 1 раз будем читать с файла
             int bufflen = cnt * oesz;
             ByteBuffer buf = ByteBuffer.allocate(bufflen);
@@ -49,7 +49,7 @@ public class LagStats {
                     while ((offi-=oesz) >= 0) {
                         final long time = buf.getLong(offi);
                         if (Utils.isTimeInRange(time, startStampTime, endStampTime )) {
-                            list.add(new LagEntry(ba, offi));
+                            list.add(new TShEntry(ba, offi));
                             inrange = true;
                         }
                     }
@@ -82,11 +82,11 @@ public class LagStats {
      * @return
      */
     @Deprecated
-    public static List<LagEntry> parseFromBinFull(Path in, long startStampTime, long endStampTime) {
+    public static List<TShEntry> parseFromBinFull(Path in, long startStampTime, long endStampTime) {
         try {
-            List<LagEntry> list = new ArrayList<>();
+            List<TShEntry> list = new ArrayList<>();
             byte[] ba = Files.readAllBytes(in);
-            final int oesz = LagEntry.getSerializeSize();
+            final int oesz = TShEntry.getSerializeSize();
             int cnt = ba.length / oesz; //8
             int off = 0;
             for (int i = 0; i < cnt; i++) {
@@ -95,7 +95,7 @@ public class LagStats {
                     off += oesz;//просто пропускаю если время не подходит
                     continue;
                 }
-                list.add(new LagEntry(ba, off));
+                list.add(new TShEntry(ba, off));
                 off += oesz;
             }
             return list;
@@ -115,7 +115,7 @@ public class LagStats {
      * @return
      */
     public static Object getReadable(Path in, long startStampTime, long endStampTime, boolean showMillis) {
-        List<LagEntry> list = parseFromBin(in, startStampTime, endStampTime);
+        List<TShEntry> list = parseFromBin(in, startStampTime, endStampTime);
         if (list == null || list.isEmpty()) {
             return "Emtpty for " + in;
         }
@@ -124,7 +124,7 @@ public class LagStats {
             StringBuilder sb = new StringBuilder(sz * 64);
 
             for (int i = 0; i < sz; i++) {
-                LagEntry le = list.get(i);
+                TShEntry le = list.get(i);
                 le.appendTo(sb, i, showMillis).append('\n');
             }
             return sb;

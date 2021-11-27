@@ -20,7 +20,7 @@ import org.jfree.data.xy.XYDataset;
 
 import org.swarg.mc.optistats.ChartThemes;
 import org.swarg.mc.optistats.Utils;
-import org.swarg.mcforge.statistic.LagEntry;
+import org.swarg.mcforge.statistic.TShEntry;
 import static org.swarg.mc.optistats.LagStats.parseFromBin;
 
 /**
@@ -63,7 +63,7 @@ public class LagStatsJFC {
 
         ChartFactory.setChartTheme(ChartThemes.createDarknessTheme());
 
-        List<LagEntry> list = parseFromBin(in, s, e);
+        List<TShEntry> list = parseFromBin(in, s, e);
         if (list.size() > 1) {
             XYDataset dataset = createDataset(list);
 
@@ -105,7 +105,7 @@ public class LagStatsJFC {
      * @param out 0 время первой точки 1 - последней
      * @return
      */
-    private static XYDataset createDataset(List<LagEntry> list) {
+    private static XYDataset createDataset(List<TShEntry> list) {
         if (list != null && list.size() > 1) {
             try {
 
@@ -139,18 +139,18 @@ public class LagStatsJFC {
      * лагов (Для того, чтобы
      * @return
      */
-    public static TimeSeries createTimeSeries(List<LagEntry> list, String name, int max) {
+    public static TimeSeries createTimeSeries(List<TShEntry> list, String name, int max) {
         if (list != null && list.size() > 0) {
             try {
                TimeSeries ts = new TimeSeries(name);//"Lag");
                 final int sz = list.size();
 
                 for (int i = 0; i < sz; i++) {
-                    LagEntry le = list.get(i);
+                    TShEntry le = list.get(i);
                     final long time = le.time;
                     //можно ли как-то создавать инстанс секунды без Instant?
                     Second sec = getSecondOfMillis(time);
-                    ts.add(sec, le.lag);
+                    ts.add(sec, le.value);
                     /*Данные лагов имеют природу резких всплесков, а не графика
                     где точки между разными данными соеденены. поэтому добавляю
                     до и после значения привязку к baseline - 50 мс на один тик

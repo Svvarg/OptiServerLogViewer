@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import org.swarg.mcforge.statistic.CleanupEntry;
-import org.swarg.mcforge.statistic.LagEntry;
+import org.swarg.mcforge.statistic.TShEntry;
 import org.swarg.mcforge.statistic.StatEntry;
 
 /**
@@ -87,7 +87,7 @@ public class RawChartData {
      */
     public static boolean createRawDataForJSChart(Path blStats, Path blLags, Path blCleanups, Path indexHtml, long s, long e, PrintStream out) throws IOException {
         List<StatEntry> selist = TimingStats.parseFromBin(blStats, s, e);
-        List<LagEntry> lelist  = LagStats.parseFromBin(blLags, s, e);
+        List<TShEntry> lelist  = LagStats.parseFromBin(blLags, s, e);
         List<CleanupEntry> celist  = CleanupStats.parseFromBin(blCleanups, s, e);
         Path dir;
         if (Files.isDirectory(indexHtml)) {
@@ -125,7 +125,7 @@ public class RawChartData {
      * @param lelist
      * @param sb
      */
-    //private static void binaryToRawStatsData(List<StatEntry> selist, List<LagEntry> lelist, StringBuilder sb) {
+    //private static void binaryToRawStatsData(List<StatEntry> selist, List<TShEntry> lelist, StringBuilder sb) {
     private static StringBuilder getRawStatsData(List<StatEntry> selist, StringBuilder sb) {
         sb.setLength(0);
         sb.append("datetime:DateTime number:Tps number:UsedMem(Mb) number:Online number:Chunks number:Entities number:Tiles\n");
@@ -147,14 +147,14 @@ public class RawChartData {
         return sb;
     }
 
-    private static StringBuilder getRawLagsData(List<LagEntry> lelist, StringBuilder sb) {
+    private static StringBuilder getRawLagsData(List<TShEntry> lelist, StringBuilder sb) {
         sb.setLength(0);
         sb.append("datetime:DateTime number:Lags\n");
         if (lelist != null) {
             for (int i = 0; i < lelist.size(); i++) {
-                LagEntry e = lelist.get(i);
+                TShEntry e = lelist.get(i);
                 sb.append(e.time).append(' ');
-                sb.append(e.lag).append('\n');
+                sb.append(e.value).append('\n');//lag
             }
         }
         return sb;
@@ -162,7 +162,8 @@ public class RawChartData {
 
     /**
      * Для очисток в графиках пока будет использоваться только время инициализации
-     * и сколько она длилась. Для отображение были ли они и когда.
+     * и сколько длилась сама очистка.
+     * Для простого отображения когда были очистки (Для Сверки с лагами)
      * @param celist
      * @param sb
      * @return
