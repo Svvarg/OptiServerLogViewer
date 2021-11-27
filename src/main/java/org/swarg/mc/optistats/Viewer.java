@@ -1,11 +1,15 @@
 package org.swarg.mc.optistats;
 
+import java.time.Instant;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import org.swarg.cmds.ArgsWrapper;
-import org.swarg.common.ManifestVersion;
+import org.swarg.common.Strings;
+import org.swarg.stats.TShEntry;
 import org.swarg.mc.optistats.jfreechart.LagStatsJFC;
 import org.swarg.mc.optistats.jfreechart.TimingStatsJFC;
 
@@ -47,7 +51,7 @@ public class Viewer {
         return this;
     }
 
-    public static final String USAGE = "<help/version/config/lags/stats/ping> [--config path]";
+    public static final String USAGE = "<help/version/config/lags/stats/ping/convert> [--config path]";
     //если нужно указать конкретный путь к конфигу --config path/to/cnfg.properties
 
     /**
@@ -85,7 +89,7 @@ public class Viewer {
                 ans = USAGE;
             }
             else if (w.isCmd("version", "v")) {
-                ans = ManifestVersion.getVersionInfo(getClass());
+                ans = Config.getVersionInfo(w.optValueOrDef(getClass().getName(), "-c", "-for-class"));
             }
             //показать полный путь к конфигу
             else if (w.isCmd("config", "c")) {
@@ -103,6 +107,9 @@ public class Viewer {
             }
             else if (w.isCmd("ping", "p")) {
                 ans = cmdPing();
+            }
+            else if (w.isCmd("convert", "co")) {
+                ans = cmdConvert(w);
             }
             //-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=9009
             else if (w.isCmd("sleep")) {
@@ -307,7 +314,7 @@ public class Viewer {
                 Path blLags  = getPathByOptOfDef("--lags", "inLags", "lag.log.bin");//path to binarylog of lags
                 //height = weight;
                 //weight *=2;
-                ts = LagStatsJFC.createTimeSeries(LagStats.parseFromBin(blLags, this.startTime, this.endTime), "Lags", 0);
+                ts = LagStatsJFC.createTimeSeries(TShEntry.selectFromBin(blLags, this.startTime, this.endTime), "Lags", 0);
             }
             ans = TimingStatsJFC.createChartImg(in, png, weight, height, this.startTime, this.endTime, ts);
         }
@@ -384,14 +391,71 @@ public class Viewer {
         //Например 60  1000
         else if (w.isCmd("histogram", "h")) {
             if (w.isHelpCmd()) {
-                ans = DEFINE_DATETIME_RANGE_USAGE;
+                ans = "[-nm|--no-millis] [-g|--granularity]\n"
+                        + DEFINE_DATETIME_RANGE_USAGE;
             } else {
                 boolean showMillis = !w.hasOpt("-nm", "--no-millis");
-                int basketGranularity = 1;//todo
+                int basketGranularity = (int) w.optValueLongOrDef(5, "-g", "-granularity");
                 ans = PingStats.getHistogram(in, this.startTime, this.endTime, showMillis, basketGranularity);
             }
         }
         return ans;
+    }
+
+
+    public static String USAGE_CONVERT =
+            "<now/millis-to-datetime/datetime-to-millis>";
+    private Object cmdConvert(ArgsWrapper w) {
+        if (w.isHelpCmdOrNoArgs()) {
+            return USAGE_CONVERT;
+        }
+
+        if (w.isCmd("millis-to-datetime", "m2t")) {
+            if (w.isHelpCmd()) {
+                return "[long-TimeMillis(Def:Now)] [-iso [-world]] [-wm|-with-millis]";
+            }
+            long time = w.argL(w.ai++, System.currentTimeMillis());
+            boolean iso = w.hasOpt("-iso");//по умолчанию выводить локальное время
+            String ans = "?";
+            if (!iso) {
+                ans = Strings.formatDateTime(time);
+            }
+            //ISO мировое или локальное
+            else {
+                Instant inst = Instant.ofEpochMilli(time);
+                boolean world = w.hasOpt("-w", "-world");//по умолчанию выводить локальное время
+                ans = world ? inst.toString() : inst.atZone(ZoneId.systemDefault()).toString();
+            }
+            if (w.hasOpt("-wm","-with-millis")) {
+                ans += " (" + time + ")";
+            }
+            return ans ;
+        }//21:57:11 26.11.21 (1637953031105)
+
+        else if (w.isCmd("datetime-to-millis", "t2m")) {
+            if (w.isHelpCmd()) {
+                return "(ISO_OFFSET_DATE_TIME) [-cf|-custom-fromt for 'HH:mm:ss dd.MM.yy']";
+            }
+            String stime = w.join(w.ai++);//все аргументы в одну строку
+            String v;
+            try {
+                //чтобы не падал если указана локация времени
+                int k = stime.lastIndexOf("[");
+                if (k > 0) {
+                    stime = stime.substring(0, k);
+                }
+                Instant instant = (w.hasOpt("-cf", "-custom-format"))
+                        ? Strings.DT_FORMAT.parse(stime, Instant::from) //мой формат вывода даты-времени
+                        : DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(stime, Instant::from);
+                v = String.valueOf(instant.toEpochMilli());
+            }
+            catch (Exception e) {
+                v = e.getClass().getSimpleName() + " msg:" + e.getMessage();
+            }
+
+            return "'" + stime + "' = " + v;//?
+        }
+        else return "UNKNOWN";
     }
 
 
