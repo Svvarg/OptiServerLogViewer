@@ -20,8 +20,7 @@ import org.jfree.data.xy.XYDataset;
 
 import org.swarg.mc.optistats.ChartThemes;
 import org.swarg.mc.optistats.Utils;
-import org.swarg.mcforge.statistic.TShEntry;
-import static org.swarg.mc.optistats.LagStats.parseFromBin;
+import org.swarg.stats.TShEntry;
 
 /**
  * 18-11-21
@@ -63,7 +62,7 @@ public class LagStatsJFC {
 
         ChartFactory.setChartTheme(ChartThemes.createDarknessTheme());
 
-        List<TShEntry> list = parseFromBin(in, s, e);
+        List<TShEntry> list = TShEntry.selectFromBin(in, s, e);
         if (list.size() > 1) {
             XYDataset dataset = createDataset(list);
 

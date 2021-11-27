@@ -6,105 +6,18 @@ import java.util.Random;
 import java.util.List;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 
 import org.swarg.common.Binary;
 import org.swarg.common.Strings;
-import org.swarg.mcforge.statistic.TShEntry;
+import org.swarg.stats.TShEntry;
 
 /**
  * 15-11-21
  * @author Swarg
  */
 public class LagStats {
-
-    public static List<TShEntry> parseFromBin(Path in, long startStampTime, long endStampTime) {
-        try {
-            long fsz = Files.size(in);
-
-            List<TShEntry> list = new ArrayList<>();
-            final int oesz = TShEntry.getSerializeSize();
-            int cnt = 8192 / oesz;//сколько записей за 1 раз будем читать с файла
-            int bufflen = cnt * oesz;
-            ByteBuffer buf = ByteBuffer.allocate(bufflen);
-
-            try (FileChannel fc = FileChannel.open(in, StandardOpenOption.READ)) {
-                long off = fsz - bufflen;
-                if (off < 0) {
-                    off = 0;
-                }
-                while (off >= 0) {
-                    buf.clear();
-                    //do {r = fc.read(buf, off);} while (buf.hasRemaining());
-                    final int r = fc.read(buf, off);//? может ли бысть здесь случай прочтения байтов не кратных размеру обьекта?
-
-                    //всё содержимое блока подходит по времени начала
-                    boolean inrange = false;
-                    int offi = r;
-                    final byte[] ba = buf.array();
-                    while ((offi-=oesz) >= 0) {
-                        final long time = buf.getLong(offi);
-                        if (Utils.isTimeInRange(time, startStampTime, endStampTime )) {
-                            list.add(new TShEntry(ba, offi));
-                            inrange = true;
-                        }
-                    }
-                    /*если ни одна запись не подошла по времени значит произошел
-                    выход за рамки StartStampTime - выходим*/
-                    if (!inrange) {
-                        break;
-                    }
-                    off -= bufflen;
-                }
-
-            }//finally fc.close();
-
-            Collections.reverse(list);
-            return list;
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-
-    /**
-     * Построить лист значений входящих в требуемые временные рамки
-     * из бинарного файла лога
-     * @param in путь к бинарному лог файлу
-     * @param startStampTime временная начальная точка выборки
-     * @param endStampTime
-     * @return
-     */
-    @Deprecated
-    public static List<TShEntry> parseFromBinFull(Path in, long startStampTime, long endStampTime) {
-        try {
-            List<TShEntry> list = new ArrayList<>();
-            byte[] ba = Files.readAllBytes(in);
-            final int oesz = TShEntry.getSerializeSize();
-            int cnt = ba.length / oesz; //8
-            int off = 0;
-            for (int i = 0; i < cnt; i++) {
-                final long time = Binary.readLong(ba, off);
-                if (!Utils.isTimeInRange(time, startStampTime, endStampTime )) {
-                    off += oesz;//просто пропускаю если время не подходит
-                    continue;
-                }
-                list.add(new TShEntry(ba, off));
-                off += oesz;
-            }
-            return list;
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 
     /**
      * Преобразовать бинарный лог в читаемое представление
@@ -115,7 +28,7 @@ public class LagStats {
      * @return
      */
     public static Object getReadable(Path in, long startStampTime, long endStampTime, boolean showMillis) {
-        List<TShEntry> list = parseFromBin(in, startStampTime, endStampTime);
+        List<TShEntry> list = TShEntry.selectFromBin(in, startStampTime, endStampTime);
         if (list == null || list.isEmpty()) {
             return "Emtpty for " + in;
         }

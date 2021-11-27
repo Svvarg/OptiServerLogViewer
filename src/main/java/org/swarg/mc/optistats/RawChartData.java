@@ -9,8 +9,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import org.swarg.mcforge.statistic.CleanupEntry;
-import org.swarg.mcforge.statistic.TShEntry;
 import org.swarg.mcforge.statistic.StatEntry;
+import org.swarg.stats.TShEntry;
 
 /**
  * Создать из бинарного лога выборку данных для построение графика для последних
@@ -87,7 +87,7 @@ public class RawChartData {
      */
     public static boolean createRawDataForJSChart(Path blStats, Path blLags, Path blCleanups, Path indexHtml, long s, long e, PrintStream out) throws IOException {
         List<StatEntry> selist = TimingStats.parseFromBin(blStats, s, e);
-        List<TShEntry> lelist  = LagStats.parseFromBin(blLags, s, e);
+        List<TShEntry> lelist  = TShEntry.selectFromBin(blLags, s, e);
         List<CleanupEntry> celist  = CleanupStats.parseFromBin(blCleanups, s, e);
         Path dir;
         if (Files.isDirectory(indexHtml)) {

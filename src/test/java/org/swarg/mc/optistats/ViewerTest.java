@@ -67,7 +67,8 @@ public class ViewerTest {
         
         if (0==0) {
             //Viewer.main(new String[]{"config"});
-            Viewer.main(new String[]{"stats", "update", "--last-hours", "24"});//"--config", config
+            //Viewer.main(new String[]{"stats", "update", "--last-hours", "24"});//"--config", config
+            Viewer.main(new String[]{"ping", "histogram", "-s", "1637953031105"});//"--config", config
             //Viewer.main(("stats img : stats html : lags img : --config " + config).split(" "));
             //Viewer.main(("stats img --lags --config " + config).split(" "));
             //Viewer.main(new String[]{"stats", "img"});
