@@ -5,6 +5,7 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.swarg.cmds.ArgsWrapper;
+import org.swarg.common.ManifestVersion;
 import org.swarg.mc.optistats.jfreechart.LagStatsJFC;
 import org.swarg.mc.optistats.jfreechart.TimingStatsJFC;
 
@@ -46,7 +47,7 @@ public class Viewer {
         return this;
     }
 
-    public static final String USAGE = "<help/version/config/lags/stats> [--config path]";
+    public static final String USAGE = "<help/version/config/lags/stats/ping> [--config path]";
     //если нужно указать конкретный путь к конфигу --config path/to/cnfg.properties
 
     /**
@@ -84,7 +85,7 @@ public class Viewer {
                 ans = USAGE;
             }
             else if (w.isCmd("version", "v")) {
-                ans = getConfig().getVersionInfo();
+                ans = ManifestVersion.getVersionInfo(getClass());
             }
             //показать полный путь к конфигу
             else if (w.isCmd("config", "c")) {
@@ -99,6 +100,9 @@ public class Viewer {
             }
             else if (w.isCmd("cleanups", "cl")) {
                 ans = cmdCleanups();
+            }
+            else if (w.isCmd("ping", "p")) {
+                ans = cmdPing();
             }
             //-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=9009
             else if (w.isCmd("sleep")) {
@@ -164,8 +168,8 @@ public class Viewer {
 
     private static final String DEFINE_DATETIME_RANGE_USAGE =
               "[DATATIME]: to Specify DateTime Range of Data Use:\n"
-            + "[-s|--start-time] (Default: Now - 24hours), [-e|--end-time] - (Default:CurrentTime)\n"
-            + "[--last-hours (Default:24)]\n";
+            + "[ -s|--start-time (Default: Now - 24hours)], [-e|--end-time (Default:CurrentTime)]\n"
+            + "[-lh|--last-hours (Default:24)]\n";
     /**
      * [-s|--start-time] - StartOfCurrentDay, for [-e|--end-time] - CurrentTime --last-hours N \n"
      * @param maxDaysAgo
@@ -266,7 +270,8 @@ public class Viewer {
        ------------------------------------------------------------------- */
     private static final String STATS_UPDATE_USAGE =
               "update [-in (stats-log.bin)] [--lags (lags-log.bin)] [--cleanups (Def:inCleanups)] [-out (html)]\n"
-            + " - Update Data for Charts  [-d|--deploy-html - flag for (Re)Deploy html-files]\n";
+            + " - Update Data for Charts  [-d|--deploy-html - flag for (Re)Deploy html-files]\n"
+            +  DEFINE_DATETIME_RANGE_USAGE;
     private static final String STATS_USAGE =
               STATS_UPDATE_USAGE
             + "img    [-in (stats-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y]\n"
@@ -350,6 +355,44 @@ public class Viewer {
         return ans;
     }
 
+
+    private static final String PING_USAGE =
+            "view [-in (Def:Config.inCleanups)]\n" +
+            DEFINE_DATETIME_RANGE_USAGE;
+    private Object cmdPing() {
+
+        if (w.isHelpCmdOrNoArgs()) {
+            return PING_USAGE;
+        }
+        Object ans = "UNKNOWN";
+        //где лежит бинарный лог с данными
+        Path in = getPathByOptOfDef("-in", "inPing", "latest-srvping.bin");
+        defineDateTimeRange(14);// [-s L] [-e L]
+        //время (миллис) значение пинга
+        if (w.isCmd("view", "v")) {
+            if (w.isHelpCmd()) {
+                ans = "[-nm|--no-millis] [-op|--only-ping]\n"
+                        + DEFINE_DATETIME_RANGE_USAGE;
+            } else {
+                boolean showMillis = !w.hasOpt("-nm", "--no-millis");
+                boolean onlyPing   = !w.hasOpt("-a", "--all");
+                ans = PingStats.getReadable(in, this.startTime, this.endTime, showMillis, onlyPing);
+            }
+        }
+        //1637953031105
+        //гистограмма - подсчитывает сколько раз повторяется каждое уникальное значение пинга + выводит временной интервал его появления в записях
+        //Например 60  1000
+        else if (w.isCmd("histogram", "h")) {
+            if (w.isHelpCmd()) {
+                ans = DEFINE_DATETIME_RANGE_USAGE;
+            } else {
+                boolean showMillis = !w.hasOpt("-nm", "--no-millis");
+                int basketGranularity = 1;//todo
+                ans = PingStats.getHistogram(in, this.startTime, this.endTime, showMillis, basketGranularity);
+            }
+        }
+        return ans;
+    }
 
 
     // ------------------------------------------------------------------- \\
