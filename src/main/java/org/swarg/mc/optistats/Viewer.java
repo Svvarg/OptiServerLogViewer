@@ -5,8 +5,12 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
+import java.util.Locale;
 import org.swarg.cmds.ArgsWrapper;
 import org.swarg.common.Strings;
 import org.swarg.stats.TShEntry;
@@ -417,7 +421,7 @@ public class Viewer {
 
 
     public static String USAGE_CONVERT =
-            "<now/millis-to-datetime/datetime-to-millis>";
+            "<millis-to-datetime/datetime-to-millis/def-zone-id>";
     private Object cmdConvert(ArgsWrapper w) {
         if (w.isHelpCmdOrNoArgs()) {
             return USAGE_CONVERT;
@@ -427,17 +431,17 @@ public class Viewer {
             if (w.isHelpCmd()) {
                 return "[long-TimeMillis(Def:Now)] [-iso [-world]] [-wm|-with-millis]";
             }
+            boolean iso = w.hasOpt("-iso", "-i");
             long time = w.argL(w.ai++, System.currentTimeMillis());
-            boolean iso = w.hasOpt("-iso");//по умолчанию выводить локальное время
             String ans = "?";
-            if (!iso) {
-                ans = Strings.formatDateTime(time);
-            }
-            //ISO мировое или локальное
-            else {
+            if (iso) {
                 Instant inst = Instant.ofEpochMilli(time);
                 boolean world = w.hasOpt("-w", "-world");//по умолчанию выводить локальное время
                 ans = world ? inst.toString() : inst.atZone(ZoneId.systemDefault()).toString();
+            }
+            //ISO мировое или локальное
+            else {
+                ans = Strings.formatDateTime(time);
             }
             if (w.hasOpt("-wm","-with-millis")) {
                 ans += " (" + time + ")";
@@ -447,9 +451,11 @@ public class Viewer {
 
         else if (w.isCmd("datetime-to-millis", "t2m")) {
             if (w.isHelpCmd()) {
-                return "(ISO_OFFSET_DATE_TIME) [-cf|-custom-fromt for 'HH:mm:ss dd.MM.yy']";
+                return "(ISO_OFFSET_DATE_TIME) | (HH:mm:ss dd.MM.yy)";
             }
             String stime = w.join(w.ai++);//все аргументы в одну строку
+            boolean custom = Strings.isDTFormat(stime);
+            
             String v;
             try {
                 //чтобы не падал если указана локация времени
@@ -457,9 +463,9 @@ public class Viewer {
                 if (k > 0) {
                     stime = stime.substring(0, k);
                 }
-                Instant instant = (w.hasOpt("-cf", "-custom-format"))
-                        ? Strings.DT_FORMAT.parse(stime, Instant::from) //мой формат вывода даты-времени
-                        : DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(stime, Instant::from);
+                Instant instant = (custom)
+                        ? LocalDateTime.parse(stime, Strings.DT_FORMAT).atZone(ZoneOffset.systemDefault()).toInstant()//atOffset(ZoneOffset.UTC) Strings.DT_FORMAT.parse(stime, Instant::from) //HH:mm:ss dd.MM.yy
+                        : DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(stime, Instant::from);//2021-11-29T05:29:19.983Z
                 v = String.valueOf(instant.toEpochMilli());
             }
             catch (Exception e) {
@@ -468,6 +474,12 @@ public class Viewer {
 
             return "'" + stime + "' = " + v;//?
         }
+        //смещение времени системы относительно мирового 
+        else if (w.isCmd("def-zone-id", "dzi")) {
+            ZoneId zi = ZoneOffset.systemDefault();
+            return "[" + zi.getId() + "] " + zi.getRules();
+        }
+
         else return "UNKNOWN";
     }
 
