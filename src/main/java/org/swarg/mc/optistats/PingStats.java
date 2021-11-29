@@ -29,7 +29,7 @@ public class PingStats {
     public static Object getReadable(Path in, long startStampTime, long endStampTime, boolean showMillis, boolean onlyPing, boolean showLineNumber) {
         List<TShEntry> list = TShEntry.selectFromBin(in, startStampTime, endStampTime);
         if (list == null || list.isEmpty()) {
-            return "Emtpty for " + in;
+            return "Emtpty for " + in + " In TimePeriod: " + startStampTime + " - " + endStampTime;
         }
         else {
             final int sz = list.size();
@@ -70,7 +70,7 @@ public class PingStats {
     public static Object getHistogram(Path in, long startStampTime, long endStampTime, boolean showMillis, int basketGranulatiry) {
         List<TShEntry> list = getPingsOnly(TShEntry.selectFromBin(in, startStampTime, endStampTime));
         if (list == null || list.isEmpty()) {
-            return "Emtpty for " + in;
+            return "Emtpty for " + in + " In TimePeriod: " + startStampTime + " - " + endStampTime;
         }
         else {
             StringBuilder sb = new StringBuilder("[Ping Histo] Period: ");

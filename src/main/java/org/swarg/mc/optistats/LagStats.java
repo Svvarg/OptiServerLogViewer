@@ -31,7 +31,7 @@ public class LagStats {
     public static Object getReadable(Path in, long startStampTime, long endStampTime, boolean showMillis, boolean showLineNumber) {
         List<TShEntry> list = TShEntry.selectFromBin(in, startStampTime, endStampTime);
         if (list == null || list.isEmpty()) {
-            return "Emtpty for " + in;
+            return "Emtpty for " + in + " In TimePeriod: " + startStampTime + " - " + endStampTime;
         }
         else {
             final int sz = list.size();
