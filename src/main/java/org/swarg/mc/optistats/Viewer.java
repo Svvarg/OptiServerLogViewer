@@ -51,7 +51,7 @@ public class Viewer {
         return this;
     }
 
-    public static final String USAGE = "<help/version/config/lags/stats/ping/convert> [--config path]";
+    public static final String USAGE = "<help/version/config/lags/stats/cleanups/ping/convert> [--config path]";
     //если нужно указать конкретный путь к конфигу --config path/to/cnfg.properties
 
     /**
@@ -229,7 +229,8 @@ public class Viewer {
         //bin-log to text
         else if (w.isCmd("view", "v")) {
             boolean showMillis = !w.hasOpt("-nm", "--no-millis");
-            ans = LagStats.getReadable(in, this.startTime, this.endTime, showMillis);
+            boolean showLineNumber  = w.hasOpt("-ln", "--line-number");
+            ans = LagStats.getReadable(in, this.startTime, this.endTime, showMillis, showLineNumber);
         }
 
         //DEBUG Генерация случайного бинарного  лога для испытаний.
@@ -364,7 +365,7 @@ public class Viewer {
 
 
     private static final String PING_USAGE =
-            "view [-in (Def:Config.inCleanups)]\n" +
+            "<view/histogram/ratio> \n" +
             DEFINE_DATETIME_RANGE_USAGE;
     private Object cmdPing() {
 
@@ -383,7 +384,8 @@ public class Viewer {
             } else {
                 boolean showMillis = !w.hasOpt("-nm", "--no-millis");
                 boolean onlyPing   = !w.hasOpt("-a", "--all");
-                ans = PingStats.getReadable(in, this.startTime, this.endTime, showMillis, onlyPing);
+                boolean showLineNumber  = w.hasOpt("-ln", "--line-number");
+                ans = PingStats.getReadable(in, this.startTime, this.endTime, showMillis, onlyPing, showLineNumber);
             }
         }
         //1637953031105
@@ -397,6 +399,17 @@ public class Viewer {
                 boolean showMillis = !w.hasOpt("-nm", "--no-millis");
                 int basketGranularity = (int) w.optValueLongOrDef(5, "-g", "-granularity");
                 ans = PingStats.getHistogram(in, this.startTime, this.endTime, showMillis, basketGranularity);
+            }
+        }
+        //соотношение норма и нарушения (выше порогового значения)
+        else if (w.isCmd("ratio", "r")) {
+            if (w.isHelpCmd()) {
+                ans = "[-nm|--no-millis] [-t|--threshold N (Default:80)]\n"
+                        + DEFINE_DATETIME_RANGE_USAGE;
+            } else {
+                boolean showMillis = !w.hasOpt("-nm", "--no-millis");
+                int threshold = (int) w.optValueLongOrDef(80, "-t", "-treshold");
+                ans = PingStats.getRatio(in, this.startTime, this.endTime, showMillis, threshold);
             }
         }
         return ans;
