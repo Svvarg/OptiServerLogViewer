@@ -25,9 +25,10 @@ public class LagStats {
      * @param startStampTime
      * @param endStampTime
      * @param showMillis показывать и timeMillis
+     * @param showLineNumber показывать порядковый номер строки
      * @return
      */
-    public static Object getReadable(Path in, long startStampTime, long endStampTime, boolean showMillis) {
+    public static Object getReadable(Path in, long startStampTime, long endStampTime, boolean showMillis, boolean showLineNumber) {
         List<TShEntry> list = TShEntry.selectFromBin(in, startStampTime, endStampTime);
         if (list == null || list.isEmpty()) {
             return "Emtpty for " + in;
@@ -38,7 +39,10 @@ public class LagStats {
 
             for (int i = 0; i < sz; i++) {
                 TShEntry le = list.get(i);
-                le.appendTo(sb, i, showMillis).append('\n');
+                if (showLineNumber) {
+                    sb.append(String.format("#% 4d  ", i));
+                }
+                le.appendTo(sb, showMillis).append('\n');
             }
             return sb;
         }
