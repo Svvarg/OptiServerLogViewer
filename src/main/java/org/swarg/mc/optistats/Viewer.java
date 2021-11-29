@@ -9,8 +9,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.time.format.TextStyle;
-import java.util.Locale;
 import org.swarg.cmds.ArgsWrapper;
 import org.swarg.common.Strings;
 import org.swarg.stats.TShEntry;
@@ -304,9 +302,13 @@ public class Viewer {
 
         // stats view  bin-log to text
         if (w.isCmd("view", "v")) {
+            if (w.isHelpCmd()) return STATS_USAGE;
+
             ans = TimingStats.getReadableTable(in, this.startTime, this.endTime);
         }
         else if (w.isCmd("img", "i")) {
+            if (w.isHelpCmd()) return STATS_USAGE;
+            
             checkJFreeChartInClassPath();
 
             Path png = getPathByOptOfDef("-out", "outStatsImg", "stats.png");
@@ -433,7 +435,7 @@ public class Viewer {
             }
             boolean iso = w.hasOpt("-iso", "-i");
             long time = w.argL(w.ai++, System.currentTimeMillis());
-            String ans = "?";
+            String ans;
             if (iso) {
                 Instant inst = Instant.ofEpochMilli(time);
                 boolean world = w.hasOpt("-w", "-world");//по умолчанию выводить локальное время
@@ -469,7 +471,8 @@ public class Viewer {
                 v = String.valueOf(instant.toEpochMilli());
             }
             catch (Exception e) {
-                v = e.getClass().getSimpleName() + " msg:" + e.getMessage();
+                v = e.getClass().getSimpleName() + " msg:" + e.getMessage() 
+                        +"\nUse: HH:mm:ss dd.MM.yy";
             }
 
             return "'" + stime + "' = " + v;//?
