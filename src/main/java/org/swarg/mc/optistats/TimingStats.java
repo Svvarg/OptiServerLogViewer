@@ -58,16 +58,19 @@ public class TimingStats {
                     boolean inrange = false;
                     int offi = r;
                     final byte[] ba = buf.array();
+                    long time = 0;
                     while ((offi-=oesz) >= 0) {
-                        final long time = buf.getLong(offi);
+                        time = buf.getLong(offi);
                         if (Utils.isTimeInRange(time, startStampTime, endStampTime )) {
                             list.add(new StatEntry(ba, offi));
                             inrange = true;
                         }
                     }
-                    /*если ни одна запись не подошла по времени значит произошел
-                    выход за рамки StartStampTime - выходим*/
-                    if (!inrange) {
+                    /*если ни одна запись не подошла по времени - значит
+                    все записи из прочитанного блока не входят в заданный
+                    диапазон. И если ушли слишком далеко в прошлое - выходим
+                    Если же еще не дошли до нужно интервала времени - продолжаем*/
+                    if (!inrange && startStampTime > time) {
                         break;
                     }
                     off -= bufflen;
