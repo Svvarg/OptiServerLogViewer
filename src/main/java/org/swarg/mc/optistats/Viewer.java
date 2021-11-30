@@ -371,7 +371,7 @@ public class Viewer {
 
 
     private static final String PING_USAGE =
-            "<view/histogram/ratio> \n" +
+            "<view/histogram/ratio/high-area> \n" +
             DEFINE_DATETIME_RANGE_USAGE;
     private Object cmdPing() {
 
@@ -416,6 +416,17 @@ public class Viewer {
                 boolean showMillis = !w.hasOpt("-nm", "--no-millis");
                 int threshold = (int) w.optValueLongOrDef(80, "-t", "-treshold");
                 ans = PingStats.getRatio(in, this.startTime, this.endTime, showMillis, threshold);
+            }
+        }
+        //исследование просадок канала, показывать как долго была просадка после превышающего норму пинга
+        else if (w.isCmd("high-area", "ha")) {
+            if (w.isHelpCmd()) {
+                ans = "[-nm|--no-millis] [-t|--threshold N (Default:80)]\n"
+                        + DEFINE_DATETIME_RANGE_USAGE;
+            } else {
+                boolean showMillis = !w.hasOpt("-nm", "--no-millis");
+                int threshold = (int) w.optValueLongOrDef(80, "-t", "-treshold");
+                ans = PingStats.getHighPingArea(in, this.startTime, this.endTime, showMillis, threshold);
             }
         }
         return ans;

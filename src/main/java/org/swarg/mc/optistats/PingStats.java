@@ -2,6 +2,7 @@ package org.swarg.mc.optistats;
 
 import java.util.List;
 import java.nio.file.Path;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import org.swarg.common.Strings;
@@ -103,7 +104,6 @@ public class PingStats {
         else {
             StringBuilder sb = new StringBuilder("[Ping Ratio] Period: ");
             TShEntry.appendDateTimeRange(list, showMillis, sb).append('\n');
-            //игронировать конекты и дисконекты закодированные в значения            
             TShEntry.appendRatioAndAvrg(list, threshold, "ms", sb);
             return sb;
         }
@@ -130,4 +130,77 @@ public class PingStats {
         }
         return Collections.EMPTY_LIST;
     }
+
+    /**
+     * Получить текстовое представление зон просадок пинга за указанный период
+     * Ищем места где значение пига выше порога, затем смотрим значения пинга
+     * после превышения порога - отображаем сколько было контрольных перепосылок
+     * пинг-пакетов для проверки это одиночная просадка одного пинг-пакета либо
+     * "каналу поплохело"
+     * Для исследования обьёма
+     * @param in
+     * @param startStampTime
+     * @param endStampTime
+     * @param showMillis
+     * @param threshold
+     * @return
+     */
+    public static Object getHighPingArea(Path in, long startStampTime, long endStampTime, boolean showMillis, int threshold) {
+        List<TShEntry> list = getPingsOnly(TShEntry.selectFromBin(in, startStampTime, endStampTime));
+        if (list == null || list.isEmpty()) {
+            return "Emtpty for " + in + " In TimePeriod: " + startStampTime + " - " + endStampTime;
+        }
+        else {
+            StringBuilder sb = new StringBuilder("[HighPingArea] Period: ");
+            TShEntry.appendDateTimeRange(list, showMillis, sb).append('\n');
+
+            final int sz = list.size();
+            boolean shownext = false;
+            int maxDeep = 0;
+            int maxDeepIndex = -1;
+            int deep = 0;//сколько подряд высоких пингов идёт друг за другом
+            for (int i = 0; i < sz; i++) {
+                TShEntry e = list.get(i);
+                final boolean high = e.value > threshold;
+                if (high || shownext) {
+                    e.appendTo(sb, showMillis).append(' ');
+                    shownext = high;
+                    if (!high) {
+                        if (deep> maxDeep) {
+                            maxDeep = deep;
+                            maxDeepIndex = i;
+                        }
+                        deep = 0;
+                    } else {
+                        ++deep;
+                        sb.append(" << ").append(deep);
+                    }
+                    sb.append('\n');
+                }
+            }//loop
+
+            //показать максимальное кол-во перепроверок пинга при просадках скорости связи
+            if (maxDeepIndex > -1) {
+                sb.append("MaxHighPingArea: ");
+                int s = maxDeepIndex - maxDeep;
+                int e = maxDeepIndex;
+                if (s > -1 && e < sz) {
+                    TShEntry e0 = list.get(s);
+                    TShEntry e1 = list.get(e);
+                    sb.append(e0.value).append("ms ");
+                    //date + time
+                    Strings.appendDateTime(sb, e0.time, ZoneId.systemDefault(), true, true, true, false);
+                    sb.append(" - ");
+                    //time only
+                    Strings.appendDateTime(sb, e1.time, ZoneId.systemDefault(), false, true, true, false);
+                    sb.append(" (").append(e1.time-e0.time).append("ms)");
+                }
+            }
+            //сколько пакетов подрят было отослано до востановления пинга до нормы
+            sb.append("  [").append(maxDeep).append("]\n");
+
+            return sb;
+        }
+    }
+
 }
