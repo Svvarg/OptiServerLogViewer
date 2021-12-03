@@ -23,7 +23,8 @@ public class Utils {
     
     public static final DateTimeFormatter DF_DATE = DateTimeFormatter.ofPattern("dd.MM.yy");
     public static final DateTimeFormatter DF_DATETIME = DateTimeFormatter.ofPattern("dd.MM.yy  HH:mm:ss");
-    public static final DateTimeFormatter DF_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    public static final DateTimeFormatter DF_TIME   = DateTimeFormatter.ofPattern("HH:mm:ss");
+    public static final DateTimeFormatter DT_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss dd.MM.yy");
 
     public static long getStartTimeOfCurentDay() {
         Calendar c = Calendar.getInstance();
@@ -135,5 +136,118 @@ public class Utils {
         }
         return null;
     }
+    
+    /**
+     * Единое для всех отображение в случаях когда запрашиваемая область данных
+     * пуста. отобразить переод выборки + откуда она была совершения + сообщение
+     * @param msg
+     * @param in
+     * @param ts
+     * @param te
+     * @param showMillis
+     * @return
+     */
+    public static String showPeriod(String msg, Path in, long ts, long te, boolean showMillis) {
+        StringBuilder sb = new StringBuilder();
+        if (msg != null && !msg.isEmpty()) {
+            sb.append(msg).append(' ');
+        }
+        sb.append(in);
+        sb.append("\nIn Time Period: ");
+        appendTimePeriod(sb, ts,te, showMillis);
+        return sb.toString();
+    }
+    /**
+     * Время в милли в удобочитаемый вид
+     * 12-11-21 00:00:00 - 04:00:00
+     * 00:00:00 12-11-21 - 22:00:00 14-11-21
+     * @param sb
+     * @param ts
+     * @param te
+     * @param showMillis
+     * @return
+     */
+    public static StringBuilder appendTimePeriod(StringBuilder sb, long ts, long te, boolean showMillis) {
+        ZonedDateTime zdts = Instant.ofEpochMilli( ts ).atZone(ZoneId.systemDefault());
+        ZonedDateTime zdte = Instant.ofEpochMilli( te ).atZone(ZoneId.systemDefault());
 
+        //в пределах одного дня - сначала дату потом время начала - время конца
+        // 12-11-21 00:00:00 - 04:00:00
+        if (zdts.getDayOfMonth() == zdte.getDayOfMonth()) {
+            sb.append( zdts.format(Utils.DF_DATETIME) );
+            if (showMillis) {
+                sb.append(" (").append(ts).append(')');
+            }
+            sb.append(" - ");
+            sb.append(zdte.format(Utils.DF_TIME));
+            if (showMillis) {
+                sb.append(" (").append(te).append(')');
+            }
+        } 
+        //00:00:00 12-11-21 - 22:00:00 14-11-21
+        else {
+            sb.append( zdts.format(DT_FORMAT) );
+            if (showMillis) {
+                sb.append(" (").append(ts).append(')');
+            }
+            sb.append(" - ");
+            sb.append( zdte.format(DT_FORMAT) );
+            if (showMillis) {
+                sb.append(" (").append(te).append(')');
+            }
+        }
+        return sb;
+    }
+
+    /**
+     * Перевести количество миллисекунд в читаемы вид
+     * часы, минуты, секунды, миллисекунды
+     * 1273919ms => (21m 13s 919ms)
+     * не показывать нулевые единицы (например 4h, а не 4h 0m 0s 0ms)
+     * @param d
+     * @param sb
+     * @return
+     */
+    public static StringBuilder getReadableDuration(int d, StringBuilder sb) {
+        boolean f = false;
+        if (d < 3600_000) {
+            sb.append(d).append("ms ");
+            f = true;
+        }
+        if (d > 1000) {
+            if (f) {
+                sb.append('(');
+            }
+            int h = d / 3600000;
+            int m = ( d - (h * 3600_000) ) /60_000;
+            int s = (d - (h * 3600_000) - (m*60_000)) /1000;
+            int ms = (d - (h * 3600_000) - (m * 60_000) - s * 1000);
+            boolean prev = false;
+            if (h > 0) {
+                if (prev) sb.append(' ');
+                sb.append(h).append('h');
+                prev = true;
+            }
+            if (m > 0) {
+                if (prev) sb.append(' ');
+                sb.append(m).append('m');
+                prev = true;
+            }
+            if (s > 0) {
+                if (prev) sb.append(' ');
+                sb.append(s).append('s');
+                prev = true;
+            }
+            if (ms > 0) {
+                if (prev) sb.append(' ');
+                sb.append(ms).append("ms");
+                prev = true;
+            }
+            if (f) {
+                sb.append(')');
+            }
+
+        }
+        return sb;
+    }
 }
