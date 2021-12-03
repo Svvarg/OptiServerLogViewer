@@ -132,7 +132,7 @@ public class TimingStats {
     public static Object getReadableTable(Path in, long startStampTime, long endStampTime) {
         List<StatEntry> list = parseFromBin(in, startStampTime, endStampTime);
         if (list == null || list.isEmpty()) {
-            return "Emtpty for " + in;
+            return Utils.showPeriod("Emtpty for ", in, startStampTime, endStampTime, true);
         } else {
             final int sz = list.size();
             StringBuilder sb = new StringBuilder(sz * 96);
