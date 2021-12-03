@@ -30,11 +30,16 @@ public class PingStats {
     public static Object getReadable(Path in, long startStampTime, long endStampTime, boolean showMillis, boolean onlyPing, boolean showLineNumber) {
         List<TShEntry> list = TShEntry.selectFromBin(in, startStampTime, endStampTime);
         if (list == null || list.isEmpty()) {
-            return "Emtpty for " + in + " In TimePeriod: " + startStampTime + " - " + endStampTime;
+            return Utils.showPeriod("Emtpty for ", in, startStampTime, endStampTime, true);
         }
         else {
             final int sz = list.size();
             StringBuilder sb = new StringBuilder(sz * 64);
+            if (showLineNumber){
+                sb.append("#   N ");
+            }
+            sb.append("  Time     Date      ").append(showMillis?"(millis)       ":"").append("Ping(ms)\n");
+
 
             for (int i = 0; i < sz; i++) {
                 TShEntry le = list.get(i);
@@ -71,12 +76,14 @@ public class PingStats {
     public static Object getHistogram(Path in, long startStampTime, long endStampTime, boolean showMillis, int basketGranulatiry) {
         List<TShEntry> list = getPingsOnly(TShEntry.selectFromBin(in, startStampTime, endStampTime));
         if (list == null || list.isEmpty()) {
-            return "Emtpty for " + in + " In TimePeriod: " + startStampTime + " - " + endStampTime;
+            return Utils.showPeriod("Emtpty for ", in, startStampTime, endStampTime, true);
         }
         else {
             StringBuilder sb = new StringBuilder("[Ping Histo] Period: ");
             TShEntry.appendDateTimeRange(list, showMillis, sb).append('\n');
-            sb.append("  ping   count     FirstTime          millis            LastTime\n");
+            sb.append("  lags   count     FirstTime          millis        LastTime");
+            sb.append("  [Granulatiry:").append(basketGranulatiry).append("]\n");
+
                      //    50     116  01:09:42 27.11.21 (1637964582208) - 10:27:40 27.11.21 (1637998060699)
             List<int[]> histo = TShEntry.getHistogram(list, basketGranulatiry);
             TShEntry.getReadableHistogram(list, histo, basketGranulatiry, showMillis, sb).toString();
@@ -99,7 +106,7 @@ public class PingStats {
     public static Object getRatio(Path in, long startStampTime, long endStampTime, boolean showMillis, int threshold) {
         List<TShEntry> list = getPingsOnly(TShEntry.selectFromBin(in, startStampTime, endStampTime));
         if (list == null || list.isEmpty()) {
-            return "Emtpty for " + in;
+            return Utils.showPeriod("Emtpty for ", in, startStampTime, endStampTime, true);
         }
         else {
             StringBuilder sb = new StringBuilder("[Ping Ratio] Period: ");
@@ -148,7 +155,7 @@ public class PingStats {
     public static Object getHighPingArea(Path in, long startStampTime, long endStampTime, boolean showMillis, int threshold) {
         List<TShEntry> list = getPingsOnly(TShEntry.selectFromBin(in, startStampTime, endStampTime));
         if (list == null || list.isEmpty()) {
-            return "Emtpty for " + in + " In TimePeriod: " + startStampTime + " - " + endStampTime;
+            return Utils.showPeriod("Emtpty for ", in, startStampTime, endStampTime, true);
         }
         else {
             StringBuilder sb = new StringBuilder("[HighPingArea] Period: ");
