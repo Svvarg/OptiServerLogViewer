@@ -1,9 +1,12 @@
 package org.swarg.mc.optistats;
 
+import java.util.List;
+import java.util.Random;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Random;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -31,11 +34,18 @@ public class LagStats {
     public static Object getReadable(Path in, long startStampTime, long endStampTime, boolean showMillis, boolean showLineNumber) {
         List<TShEntry> list = TShEntry.selectFromBin(in, startStampTime, endStampTime);
         if (list == null || list.isEmpty()) {
-            return "Emtpty for " + in + " In TimePeriod: " + startStampTime + " - " + endStampTime;
+            return Utils.showPeriod("Emtpty for ", in, startStampTime, endStampTime, true);
         }
         else {
             final int sz = list.size();
-            StringBuilder sb = new StringBuilder(sz * 64);
+            StringBuilder sb = new StringBuilder((sz+1) * 64);
+            //отображаю именно указанный период выборки, а не крайние времени когда были обнаружены лаги
+            Utils.appendTimePeriod(sb, startStampTime, endStampTime, showMillis);
+
+            if (showLineNumber){
+                sb.append("#   N ");
+            }
+            sb.append("  Time     Date      ").append(showMillis?"(millis)       ":"").append("Lag(ms)\n");
 
             for (int i = 0; i < sz; i++) {
                 TShEntry le = list.get(i);
@@ -49,7 +59,250 @@ public class LagStats {
     }
 
 
+    /**
+     * Сравнить количество значений не превышающих заданное пороговое значение
+     * с теми которые превышают порог.
+     * Лаг - это уже наружение, но данным методом можно быстро выявить процентное
+     * соотвеное по количеству каких лагов больше
+     * @param in
+     * @param startStampTime
+     * @param endStampTime
+     * @param showMillis
+     * @param threshold этого значения счить пинг нарушением порог
+     * @return
+     */
+    public static Object getRatio(Path in, long startStampTime, long endStampTime, boolean showMillis, int threshold) {
+        List<TShEntry> list = TShEntry.selectFromBin(in, startStampTime, endStampTime);
+        if (list == null || list.isEmpty()) {
+            return Utils.showPeriod("Emtpty for ", in, startStampTime, endStampTime, true);
+        }
+        else {
+            StringBuilder sb = new StringBuilder("[Lags Ratio] Period: ");
+            //TShEntry.appendDateTimeRange(list, showMillis, sb).append('\n');
+            //отображаю именно указанный период выборки, а не крайние времени когда были обнаружены лаги
+            Utils.appendTimePeriod(sb, startStampTime, endStampTime, showMillis);
+            TShEntry.appendRatioAndAvrg(list, threshold, "ms", sb);
+            return sb;
+        }
+    }
+    /**
+     * Построение гистограммы уникальных значений в наборе данных для указанной
+     * гранулярности карзины значений. Для пинга оптимально указывать гранулярность 5
+     * @param in
+     * @param startStampTime
+     * @param endStampTime
+     * @param showMillis
+     * @param basketGranulatiry точность карзины 1 - каждому значению своя корзина
+     * Для пинга оптимально указывать 5, при 10 возникают вопросы восприятия например 50 это все от 50 до 60 но логичнее было бы к 50 относить [45-55)
+     * @return
+     */
+    public static Object getHistogram(Path in, long startStampTime, long endStampTime, boolean showMillis, int basketGranulatiry) {
+        List<TShEntry> list = TShEntry.selectFromBin(in, startStampTime, endStampTime);
+        if (list == null || list.isEmpty()) {
+            return Utils.showPeriod("Emtpty for ", in, startStampTime, endStampTime, true);
+        }
+        else {
+            StringBuilder sb = new StringBuilder("[Lags Histo] Period: ");
+            //TShEntry.appendDateTimeRange(list, showMillis, sb).append('\n');
+            //отображаю именно указанный период выборки, а не крайние времени когда были обнаружены лаги
+            Utils.appendTimePeriod(sb, startStampTime, endStampTime, showMillis);
+            sb.append("  lags   count     FirstTime          millis            LastTime");
+            sb.append("  [Granulatiry:").append(basketGranulatiry).append("]\n");
+            //    50     116  01:09:42 27.11.21 (1637964582208) - 10:27:40 27.11.21 (1637998060699)
+            List<int[]> histo = TShEntry.getHistogram(list, basketGranulatiry);
+            TShEntry.getReadableHistogram(list, histo, basketGranulatiry, showMillis, sb).toString();
+            //todo показать шаг выборки между значений
+            return sb;
+        }
+    }
+    /**
+     * Получить в заданном временном участке сводку по лагам
+     * сумма длительности всех лагов, максимальный и средний лаг, процент от периода
+     * [Lags Sum] Period: 00:00:00 02.12.21 - 00:00:00 03.12.21
+     * AverageLag: 1253(ms) [20] MaxLag: 1764(ms) at 16:47:02 02.12.21
+     * Total LagsDuration: 25060ms (25s 60ms), Period:24h , LagPercent: 0,0290 %
+     * @param in
+     * @param startStampTime
+     * @param endStampTime
+     * @param showMillis
+     * @return
+     */
+    public static Object getSummary(Path in, long startStampTime, long endStampTime, boolean showMillis) {
+        List<TShEntry> list = TShEntry.selectFromBin(in, startStampTime, endStampTime);
+        if (list == null || list.isEmpty()) {
+            return Utils.showPeriod("Emtpty for ", in, startStampTime, endStampTime, true);
+        }
+        else {
+            StringBuilder sb = new StringBuilder("[Lags Sum] Period: ");
+            //отобразить границы исследуюемого времени, а не крайние значения времени из листа с лагами
+            Utils.appendTimePeriod(sb, startStampTime, endStampTime, showMillis).append('\n');
 
+            int[] va = LagStats.getSummary(list);//0sum 1avrg 2imax
+            final int sz = list.size();
+            int sum  = va[0];
+            int avrg = va[1];
+            int imax = va[2];
+            sb.append("AverageLag: ").append(avrg).append("(ms) [").append(sz).append("] ");
+            if (imax > -1) {
+                final long mtime = list.get(imax).time;
+                int max = list.get(imax).value;
+                sb.append("MaxLag: ").append(max).append("(ms) at ").append(Strings.formatDateTime(mtime));
+                if (showMillis) {
+                    sb.append(" (").append(mtime).append(") ");
+                }
+                sb.append('\n');
+            }
+
+            sb.append("Total LagsDuration: ");
+            Utils.getReadableDuration(sum, sb);
+
+            //рассматриваемый период
+            //более правильно брать именно заданные рамки
+            long ts = startStampTime;
+            long te = endStampTime;
+            int diff = (int) (te - ts); //100%
+            Utils.getReadableDuration(diff, sb.append(", Period:"));
+            //sum x
+            double p = sum * 100.0D / diff;
+            sb.append(", LagPercent: ").append(String.format("%6.4f %%", p));
+            return sb;
+        }
+    }
+    /**
+     * Получить сумму значений всех лагов, среднее значение (сумма на количество)
+     * и индекс максимального лага в list
+     *
+     * @param list
+     * @return
+     */
+    public static int[] getSummary(List<TShEntry> list) {
+        int sum = 0;
+        int max = 0;
+        int imax =-1;
+        final int sz = list.size();
+        for (int i = 0; i < sz; i++) {
+            TShEntry e = list.get(i);
+            final int v = e.value;
+            sum += v;
+            if (v > max) {
+                max = v;
+                imax = i;
+            }
+        }
+        int avrg = sz == 0 ? 0 : sum / sz;
+        return new int[] {sum, avrg, imax};
+    }
+
+    /**
+     * Сравнить величину и частоту лагов по дням для заданных часов
+     *
+     * Например для вявления изменения величины и частоты лагов по ночам.
+     * Больше всего интересует период 0-4
+     * С возможностью указать руками интересующий сравниваемый период
+     * Смысл втом чтобы сравнить данные за разные дни в один временной промежуток
+     * времени например с 0 до 4х утра
+     *
+     * Пример вывода (lags cd -s -01-12-21 -e -03-12-21 -nm  )
+     * [Compare Lags] Full Observe Period: 00:00:00 01.12.21 - 00:00:00 03.12.21
+     * Observed time period for each Day:  00:00:00 - 04:00:00  (4h)
+     * 
+     * # 01.12.21  00:00:00 - 04:00:00
+     * AverageLag: 3538(ms) [Cnt:360] Max: 35884(ms) at 00:45:53 01.12.21
+     * Total Lags Duration: 1273919ms (21m 13s 919ms), LagPercent: 8,8467 %
+     *
+     * # 02.12.21  00:00:00 - 04:00:00
+     * AverageLag: 1212(ms) [Cnt:9] Max: 1392(ms) at 01:39:05 02.12.21
+     * Total Lags Duration: 10916ms (10s 916ms), LagPercent: 0,0758 %
+
+     * @param in
+     * @param startTime начала всего промежутка сравнения по дням
+     * @param endTime конец всего промежутка
+     * @param showMillis
+     * @param hs начальный час обработки данных
+     * @param he конечный час
+     * @return
+     */
+    public static Object getCompareDaysInHours(Path in, long startTime, long endTime, boolean showMillis, int hs, int he) {
+        List<TShEntry> list = TShEntry.selectFromBin(in, startTime, endTime);
+        if (list == null || list.isEmpty()) {
+            return Utils.showPeriod("Emtpty for ", in, startTime, endTime, true);
+        }
+        else {
+            StringBuilder sb = new StringBuilder("[Compare Lags] Full Observe Period: ");
+            //Показать общий выбранный период времени для которого будет создано сравнение
+            Utils.appendTimePeriod(sb, startTime, endTime, showMillis).append('\n');
+
+            //Instant i = Instant.ofEpochMilli(startTime).;
+            LocalDateTime t0 = Instant.ofEpochMilli(startTime).atZone(ZoneId.systemDefault()).toLocalDateTime();
+            final int y = t0.getYear();
+            final int m = t0.getMonthValue();
+            final int d = t0.getDayOfMonth();
+
+            //время начала выборки значений для первого для из указанного промежутка времени
+            LocalDateTime tfs = LocalDateTime.of(y, m, d, hs, 0, 0, 0);
+            LocalDateTime tfe = LocalDateTime.of(y, m, d, he, 0, 0, 0);
+            long mfs = tfs.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            long mfe = tfe.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            List<TShEntry> tmp = new ArrayList<>();
+
+            //для всех дней он будет одинаковый
+            int period = (int)(mfe-mfs);
+            //Наблюдаемый переод времени для каждого дня. Период для которого будут обрабатывается данные
+            sb.append("Observed time period for each Day:  ");
+            sb.append(hs < 10 ? '0' : "").append(hs).append(":00:00 - ").append(he < 10 ? '0' : "").append(he).append(":00:00  ");
+            Utils.getReadableDuration(period, sb.append("(")).append(")\n\n");
+
+            long ts = mfs;
+            long te = mfe;
+            boolean started = false;
+
+            do {
+                tmp.clear();
+                TShEntry.select(list, ts, te, tmp);
+                final int sz = tmp.size();
+                //пропускаю с начала дни в для которых нед данных
+                if (sz > 0 || started) {
+                    started = true;
+
+                    //отображаем Дату и временной интервал для текущего рассматриваемого дня
+                    Utils.appendTimePeriod(sb.append("# "), ts, te, showMillis).append("\n");
+
+                    int[] va = getSummary(tmp);
+                    int sum  = va[0];
+                    int avrg = va[1];
+                    int imax = va[2];
+                    int diff = (int) (te - ts);//100%
+                    double p = sum * 100.0D / diff;
+
+                    sb.append("AverageLag: ").append(avrg).append("(ms) [Cnt:").append(sz).append("] ");
+                    if (imax>-1) {
+                        final long mtime = tmp.get(imax).time;
+                        int max = tmp.get(imax).value;
+                        //максимальное значение лага (верхняя граница 65535 - выше обрезает
+                        sb.append("Max: ").append(max).append("(ms) at ").append(Strings.formatDateTime(mtime));
+                        if (showMillis) {
+                            sb.append(" (").append(mtime).append(") ");
+                        }
+                        sb.append('\n');
+                    }
+                    //сумма времени в котором сервер был в лаге
+                    sb.append("Total Lags Duration: ");
+                    Utils.getReadableDuration(sum, sb);
+                    sb.append(", LagPercent: ").append(String.format("%6.4f %%", p));
+                    sb.append("\n\n");
+                }
+
+                final long step = 24*60*60000;
+                ts += step;//следующий день
+                te += step;
+
+            } while(te <= endTime);
+
+            return sb;
+        }
+    }
+
+ 
 
     // ============================== DEBUG ===============================  \\
 
