@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import org.swarg.cmds.ArgsWrapper;
 import org.swarg.common.Strings;
 import org.swarg.stats.TShEntry;
+import org.swarg.cmds.ArgsWrapper;
 import org.swarg.mc.optistats.jfreechart.LagStatsJFC;
 import org.swarg.mc.optistats.jfreechart.TimingStatsJFC;
 
@@ -53,7 +53,7 @@ public class Viewer {
         return this;
     }
 
-    public static final String USAGE = "<help/version/config/lags/stats/cleanups/ping/convert> [--config path]";
+    public static final String USAGE = "<help/version/config/lags/stats/cleanups/ping/convert> [--config (path)]";
     //если нужно указать конкретный путь к конфигу --config path/to/cnfg.properties
 
     /**
@@ -177,7 +177,8 @@ public class Viewer {
 
     private static final String DEFINE_DATETIME_RANGE_USAGE =
               "[DATATIME]: to Specify DateTime Range of Data Use:\n"
-            + "[ -s|--start-time (Default: Now - 24hours)], [-e|--end-time (Default:CurrentTime)]\n"
+            + "[ -s|--start-time V (Default: 24hoursAgo)], [-e|--end-time V (Default:CurrentTime)]\n"
+            + "            There V is EpochTimeMillis or DataTimePattern='HH:mm:ss-dd.MM.yy'\n"
             + "[-lh|--last-hours (Default:24)]\n";
     /**
      * [-s|--start-time] - StartOfCurrentDay, for [-e|--end-time] - CurrentTime --last-hours N \n"
@@ -193,28 +194,35 @@ public class Viewer {
             lasthours = 24 * maxDaysAgo ;//return "limit 7 days";//TODO добавить поддержку указания даты в читабельном виде (например для такого-то там дня)
         }
         final long before24h = now - lasthours *60*60000;
-        this.startTime = w.optValueLongOrDef(before24h, "-s", "--start-time"); //за 24ч до сейчас; old начало текущего дня Utils.getStartTimeOfCurentDay()
-        this.endTime = w.optValueLongOrDef(now, "-e", "--end-time");
+        this.startTime = before24h;
+        this.endTime = now;
+        this.startTime = w.optValueTimeMillisOrDef(before24h, "-s", "--start-time");
+        this.endTime   = w.optValueTimeMillisOrDef(now, "-e", "--end-time");
     }
 
-
+    private static final String LAGS_USAGE0 =
+            "<img / view / summary / ratio / histogram / compare-days>";
     private static final String LAGS_USAGE =
-              "img  [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y]\n"
-            + "view [-in (file-log.bin)] [--no-millis]\n"
+              "img   [-in (file-log.bin)] [-out (img.png)] [-w|--weight X] [-h|--height Y]\n"
+            + "view  [-in (file-log.bin)] [--no-millis]\n"
+            + "summary [-in (file-log.bin)] [--no-millis]\n"
+            + "ratio   [-in (file-log.bin)] [--no-millis] [-t|-threshold N (Def:500)]\n"
+            + "histogram [-in (file-log.bin)] [--no-millis] [-g|-granularity N (Def:1000)]\n"
             + "[NOTE]: Defaults for -in & -out take from Config.inLags;\n"
             +  DEFINE_DATETIME_RANGE_USAGE
             + "generate [-out ($Config.inLags)] [-w|--rewrite-exists] [--count N Def:96] [--verbose] - [DEBUG] Generate Random Binary LogFile \n";
 
     private Object cmdLags() throws IOException {
-        if (w.isHelpCmdOrNoArgs()) {
+        if (w.isHelpCmd()) {
             return LAGS_USAGE;
         }
-        Object ans = "UNKNOWN";
+        Object ans;
         //где лежит бинарный лог с данными
         Path in = getPathByOptOfDef("-in", "inLags", "lag.log.bin");
 
         //временное ограничение (на данный момент все данные собираются в один файл)
         defineDateTimeRange(14);
+        boolean showMillis = !w.hasOpt("-nm", "--no-millis");
 
         //create-lag-image
         if (w.isCmd("img", "i")) {
@@ -230,9 +238,48 @@ public class Viewer {
 
         //bin-log to text
         else if (w.isCmd("view", "v")) {
-            boolean showMillis = !w.hasOpt("-nm", "--no-millis");
             boolean showLineNumber  = w.hasOpt("-ln", "--line-number");
             ans = LagStats.getReadable(in, this.startTime, this.endTime, showMillis, showLineNumber);
+        }
+
+        //общая сумма всех лагов, максимальный, средний, количество
+        else if (w.isCmd("summary", "s")) {
+            if (w.isHelpCmd()) {
+                ans = "[-nm|--no-millis]\n" + DEFINE_DATETIME_RANGE_USAGE;
+            } else {
+                ans = LagStats.getSummary(in, startTime, endTime, showMillis);
+            }
+        }
+
+        else if (w.isCmd("compare-days", "cd")) {
+            if (w.isHelpCmd()) {
+                ans = "[-nm|--no-millis] [-hs|-hour-start N] [-he|-hour-end N]\n"
+                        + DEFINE_DATETIME_RANGE_USAGE;
+            } else {
+                int hs = w.optValueIntOrDef(0, "-hs","-hour-start");
+                int he = w.optValueIntOrDef(4, "-he","-hour-end");
+                ans = LagStats.getCompareDaysInHours(in, this.startTime, this.endTime, showMillis, hs, he);
+            }
+        }
+
+        else if (w.isCmd("ratio", "r")) {
+            if (w.isHelpCmd()) {
+                ans = "[-nm|--no-millis] [-t|-threshold N (Def:500)]\n"
+                        + DEFINE_DATETIME_RANGE_USAGE;
+            } else {
+                int threashold = (int) w.optValueLongOrDef(500, "-t", "-treshold");
+                ans = LagStats.getRatio(in, this.startTime, this.endTime, showMillis, threashold);
+            }
+        }
+
+        else if (w.isCmd("histogram", "h")) {
+            if (w.isHelpCmd()) {
+                ans = "[-nm|--no-millis] [-g|--granularity]\n"
+                        + DEFINE_DATETIME_RANGE_USAGE;
+            } else {
+                int basketGranularity = (int) w.optValueLongOrDef(1000, "-g", "-granularity");
+                ans = LagStats.getHistogram(in, this.startTime, this.endTime, showMillis, basketGranularity);
+            }
         }
 
         //DEBUG Генерация случайного бинарного  лога для испытаний.
@@ -252,6 +299,9 @@ public class Viewer {
                 Path out = getConfig().getFullPath(outName);
                 ans = LagStats.genRndLagFile(cnt, out, canRewrite, getOut(), verbose);
             }
+        }
+        else {
+            ans = LAGS_USAGE0;
         }
 
         return ans;
@@ -288,12 +338,14 @@ public class Viewer {
             + "view   [-in (stats-log.bin)] \n"
             +  DEFINE_DATETIME_RANGE_USAGE //--start-time --end-time
             + "[NOTE]: Defaults for -in/-out take from Config.inStats/outStatsImg/outStatsHtml;\n";
+    private static final String STATS_USAGE0 =
+            "<update/img/view>";
     //stats
     private Object cmdStats() throws IOException {
         if (w.isHelpCmdOrNoArgs()) {
             return STATS_USAGE;
         }
-        Object ans = "UNKNOWN";
+        Object ans;
         //где лежит бинарный лог с данными
         Path in = getPathByOptOfDef("-in", "inStats", "stats.log.bin");//path to binarylog
 
@@ -343,6 +395,9 @@ public class Viewer {
             
             ans = RawChartData.createRawDataForJSChart(blStats, blLags, blClnps, html, this.startTime, this.endTime, getOut());
         }
+        else {
+            ans = STATS_USAGE0;
+        }
 
         return ans;
     }
@@ -356,7 +411,7 @@ public class Viewer {
         if (w.isHelpCmdOrNoArgs()) {
             return CLEANUPS_USAGE;
         }
-        Object ans = "UNKNOWN";
+        Object ans;
         //где лежит бинарный лог с данными
         Path in = getPathByOptOfDef("-in", "inCleanups", "cleanup-log.bin");
 
@@ -365,20 +420,22 @@ public class Viewer {
         //Текстовая Таблица срабатываний очисток
         if (w.isCmd("view", "v")) {
             ans = CleanupStats.getReadableTable(in, this.startTime, this.endTime);
+        } else {
+            ans = CLEANUPS_USAGE;
         }
         return ans;
     }
 
 
-    private static final String PING_USAGE =
-            "<view/histogram/ratio/high-area> \n" +
-            DEFINE_DATETIME_RANGE_USAGE;
+    private static final String PING_USAGE0 =
+            "<view/histogram/ratio/high-area>";
+            //DEFINE_DATETIME_RANGE_USAGE;
     private Object cmdPing() {
 
         if (w.isHelpCmdOrNoArgs()) {
-            return PING_USAGE;
+            return PING_USAGE0 + "\n"+DEFINE_DATETIME_RANGE_USAGE;
         }
-        Object ans = "UNKNOWN";
+        Object ans;
         //где лежит бинарный лог с данными
         Path in = getPathByOptOfDef("-in", "inPing", "latest-srvping.bin");
         defineDateTimeRange(14);// [-s L] [-e L]
@@ -429,12 +486,15 @@ public class Viewer {
                 ans = PingStats.getHighPingArea(in, this.startTime, this.endTime, showMillis, threshold);
             }
         }
+        else {
+            ans = PING_USAGE0;
+        }
         return ans;
     }
 
 
     public static String USAGE_CONVERT =
-            "<millis-to-datetime/datetime-to-millis/def-zone-id>";
+            "<m2t|millis-to-datetime / t2m|datetime-to-millis / et|echo-time / dzi|def-zone-id>";
     private Object cmdConvert(ArgsWrapper w) {
         if (w.isHelpCmdOrNoArgs()) {
             return USAGE_CONVERT;
@@ -461,7 +521,10 @@ public class Viewer {
             }
             return ans ;
         }//21:57:11 26.11.21 (1637953031105)
-
+        /**
+         * Парсинг на основе стандартного ISO формата и кастомного HH:mm:ss dd.MM.yy
+         * требует точного указания вплодь до разделителя
+         */
         else if (w.isCmd("datetime-to-millis", "t2m")) {
             if (w.isHelpCmd()) {
                 return "(ISO_OFFSET_DATE_TIME) | (HH:mm:ss dd.MM.yy)";
@@ -471,7 +534,7 @@ public class Viewer {
             
             String v;
             try {
-                //чтобы не падал если указана локация времени
+                //убрать локацию если указана (иначе не распарсит)
                 int k = stime.lastIndexOf("[");
                 if (k > 0) {
                     stime = stime.substring(0, k);
@@ -488,15 +551,43 @@ public class Viewer {
 
             return "'" + stime + "' = " + v;//?
         }
+        /**
+         * Парсинг вариативного ввода времени-даты, с заменой пропущенных
+         * элементов на значения для текущего времени.
+         * Разделители могут быть любые не цифровые символы
+         * время и дату желательно разделять двумя разделителями если
+         * для указания времени используется сокращенный вид. Примеры:
+         * HH:mm  все остальные заполнит возмёт из текущего времени изменив в нём только час и минуты
+         * HH     изменить от текущего только время
+         * HH--dd  изменить время и день
+         * -dd:mm  только день и месяц и т.д.
+         * для отладки и проверки как код распознаёт введённое время-дату
+         * На вход подаём как время-дату так и лонг число.
+         * пропущенные элементы времени-даты заполняет из текущего времени
+         * Эта же механика поддерживается в ключах: -s|--starttime -e|--endtime
+         */
+        else if (w.isCmd("echo-time", "et")) {
+            if (w.isHelpCmdOrNoArgs()) {
+                return "HH:mm:ss--dd:MM:yy [-iso [-world]]";
+            }
+            long millis = w.argTimeMillis(w.ai, -1L);
+            if (w.hasOpt("-iso", "-i")) {
+                Instant inst = Instant.ofEpochMilli(millis);
+                boolean world = w.hasOpt("-w", "-world");//по умолчанию выводить локальное время
+                return world ? inst.toString() : inst.atZone(ZoneId.systemDefault()).toString();
+            }
+
+            return "In: '" + w.arg(w.ai) + "'  Out: "+ Strings.formatDateTime(millis) + "  (" + millis + ")";
+        }
+
         //смещение времени системы относительно мирового 
         else if (w.isCmd("def-zone-id", "dzi")) {
             ZoneId zi = ZoneOffset.systemDefault();
             return "[" + zi.getId() + "] " + zi.getRules();
         }
 
-        else return "UNKNOWN";
+        else return USAGE_CONVERT;
     }
-
 
     // ------------------------------------------------------------------- \\
 
