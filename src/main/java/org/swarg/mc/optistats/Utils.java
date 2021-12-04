@@ -153,6 +153,9 @@ public class Utils {
             sb.append(msg).append(' ');
         }
         sb.append(in);
+        if (in != null) {
+            sb.append(Files.exists(in) ? " [Exists]" : " [NotFound]");
+        }
         sb.append("\nIn Time Period: ");
         appendTimePeriod(sb, ts,te, showMillis);
         return sb.toString();
