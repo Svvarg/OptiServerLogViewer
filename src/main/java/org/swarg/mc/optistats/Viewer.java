@@ -57,7 +57,7 @@ public class Viewer {
     //если нужно указать конкретный путь к конфигу --config path/to/cnfg.properties
 
     /**
-     *
+     *Поддержка нескольких команд разделенных символом ':'
      */
     public void performRequests() {
         String[] args = w.getArgs();
@@ -150,7 +150,7 @@ public class Viewer {
         }
         
         StringBuilder sb = new StringBuilder();
-        if (w.noArgs()|| w.isCmd("dirs")) {
+        if (w.noArgs() || w.isCmd("dirs")) {
             //текущий рабочий каталог в котором запущено приложение
             sb.append("pwd: ").append(Paths.get(".").toAbsolutePath()).append('\n');
             sb.append(" wd: ").append(getConfig().getWorkDir()).append('\n');
@@ -160,9 +160,35 @@ public class Viewer {
 
         //получить значение для одного или несколько указанных свойств
         else if (w.isCmd("prop", "p")) {
-            while (w.argsRemain() > 0) {
-                String name = w.arg(w.ai++);
-                sb.append(name).append('=').append(config.props.get(name)).append('\n');
+            if (w.isHelpCmdOrNoArgs()) {
+                sb.append("prop-name1 prop-name2 .. N - show values of props\n"
+                        + "prop-name1 = new-value1 prop-name2 = new-value2 - Set values in Runtime scope only (Not saving changes to config-file)\n");
+            } else {
+                while (w.argsRemain() > 0) {
+                    String name = w.arg(w.ai++);
+                    //если указан разделитель команд - передать выполнение дальше
+                    if (":".equals(name)) {
+                        --w.ai;
+                        break;
+                    }
+                    
+                    //проверю если после имени свойства идёт знак присваивания '=' и есть значение - присвоить новое значение
+                    String define = w.arg(w.ai);
+                    if ("=".equals(define) && w.argsRemain() > 0) {
+                        w.ai++;
+                        if (w.argsRemain() > 0) {
+                            String newvalue = w.arg(w.ai);
+                            // prop1 = prop2 (защита от ошибочного использования - нельзя присовить значения имеющихся ключей)
+                            if (!config.props.containsKey(newvalue)) {
+                                config.props.setProperty(name, newvalue);
+                                w.ai++;
+                            } else {
+                                sb.append("[WARN] Not Defined prop: '").append(name).append("'").append(" to Existed PropName: ").append(newvalue).append('\n');
+                            }
+                        }
+                    }
+                    sb.append(name).append('=').append(config.props.get(name)).append('\n');
+                }
             }
         }
         //опционально все свойства конфига
@@ -355,7 +381,6 @@ public class Viewer {
         // stats view  bin-log to text
         if (w.isCmd("view", "v")) {
             if (w.isHelpCmd()) return STATS_USAGE;
-
             ans = TimingStats.getReadableTable(in, this.startTime, this.endTime);
         }
         else if (w.isCmd("img", "i")) {
