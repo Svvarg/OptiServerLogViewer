@@ -201,6 +201,18 @@ public class Viewer {
         return sb;
     }
 
+
+    /**
+     * Для отладки показать файл из которого будет идти выборка данных
+     * @param in
+     */
+    public void showInputFilePathOnOpt(Path in) {
+        if (w.hasOpt("--show-input-file")) {
+            getOut().println(in);
+        }
+    }
+
+
     private static final String DEFINE_DATETIME_RANGE_USAGE =
               "[DATATIME]: to Specify DateTime Range of Data Use:\n"
             + "[ -s|--start-time V (Default: 24hoursAgo)], [-e|--end-time V (Default:CurrentTime)]\n"
@@ -245,6 +257,7 @@ public class Viewer {
         Object ans;
         //где лежит бинарный лог с данными
         Path in = getPathByOptOfDef("-in", "inLags", "lag.log.bin");
+        showInputFilePathOnOpt(in);//--show-input-file
 
         //временное ограничение (на данный момент все данные собираются в один файл)
         defineDateTimeRange(14);
@@ -374,6 +387,7 @@ public class Viewer {
         Object ans;
         //где лежит бинарный лог с данными
         Path in = getPathByOptOfDef("-in", "inStats", "stats.log.bin");//path to binarylog
+        showInputFilePathOnOpt(in);//--show-input-file
 
         //временное ограничение (на данный момент все данные собираются в один файл)
         this.defineDateTimeRange(7);
@@ -439,6 +453,7 @@ public class Viewer {
         Object ans;
         //где лежит бинарный лог с данными
         Path in = getPathByOptOfDef("-in", "inCleanups", "cleanup-log.bin");
+        showInputFilePathOnOpt(in);//--show-input-file
 
         defineDateTimeRange(14);
 
@@ -463,6 +478,8 @@ public class Viewer {
         Object ans;
         //где лежит бинарный лог с данными
         Path in = getPathByOptOfDef("-in", "inPing", "latest-srvping.bin");
+        showInputFilePathOnOpt(in);//--show-input-file
+
         defineDateTimeRange(14);// [-s L] [-e L]
         //время (миллис) значение пинга
         if (w.isCmd("view", "v")) {
