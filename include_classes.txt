@@ -1,6 +1,7 @@
 org/swarg/mcforge/statistic/StatEntry.class
 org/swarg/mcforge/statistic/CleanupEntry.class
 org/swarg/stats/TShEntry.class
+org/swarg/common/RandomAccessFileManager.class
 org/swarg/common/AbstractAppConfig.class
 org/swarg/common/ManifestVersion.class
 org/swarg/common/Binary.class

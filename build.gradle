@@ -19,7 +19,7 @@ repositories {
 
 dependencies {
     compile 'org.swarg.cmds:cmds4j:0.2'
-    compile 'org.swarg.common:alib:0.2.4'
+    compile 'org.swarg.common:alib:0.2.5'
     compile 'org.jfree:jfreechart:1.5.0'
     compile 'org.swarg.mcforge:mcfbackendlib:0.5.5'
     //compile 'org.apache.logging.log4j:log4j-api:2.8.2'
@@ -63,3 +63,4 @@ jar {
 //    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
 //    with jar
 //}
+//-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=9009 
