@@ -53,7 +53,7 @@ public class Viewer {
         return this;
     }
 
-    public static final String USAGE = "<help/version/config/lags/stats/cleanups/ping/convert> [--config (path)]";
+    public static final String USAGE = "<help/version/config/lags/stats/cleanups/ping/convert/benchmark> [--config (path)]";
     //если нужно указать конкретный путь к конфигу --config path/to/cnfg.properties
 
     /**
@@ -113,12 +113,8 @@ public class Viewer {
             else if (w.isCmd("convert", "co")) {
                 ans = cmdConvert(w);
             }
-            //-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=9009
-            else if (w.isCmd("sleep")) {
-                try {
-                    Thread.sleep(w.argI(w.ai++, 5000));
-                    ans = "Done.";
-                }catch (Exception e) {}
+            else if (w.isCmd("benchmark", "bm")) {
+                ans = BenchMarks.cmd(w);
             }
             else {
                 ans = "UNKNOWN cmd: "+ w.arg(w.ai) ;
