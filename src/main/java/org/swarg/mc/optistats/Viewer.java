@@ -509,7 +509,7 @@ public class Viewer {
                         + DEFINE_DATETIME_RANGE_USAGE;
             } else {
                 boolean showMillis = !w.hasOpt("-nm", "--no-millis");
-                int threshold = (int) w.optValueLongOrDef(80, "-t", "-treshold");
+                int threshold = (int) w.optValueLongOrDef(80, "-t", "--threshold");
                 ans = PingStats.getRatio(in, this.startTime, this.endTime, showMillis, threshold);
             }
         }
@@ -520,7 +520,7 @@ public class Viewer {
                         + DEFINE_DATETIME_RANGE_USAGE;
             } else {
                 boolean showMillis = !w.hasOpt("-nm", "--no-millis");
-                int threshold = (int) w.optValueLongOrDef(80, "-t", "-treshold");
+                int threshold = (int) w.optValueLongOrDef(80, "-t", "--threshold");
                 ans = PingStats.getHighPingArea(in, this.startTime, this.endTime, showMillis, threshold);
             }
         }
