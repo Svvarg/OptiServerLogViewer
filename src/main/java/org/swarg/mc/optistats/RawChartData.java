@@ -174,7 +174,7 @@ public class RawChartData {
         if (celist != null) {
             for (int i = 0; i < celist.size(); i++) {
                 CleanupEntry e = celist.get(i);
-                sb.append(e.time).append(' ').append(e.tookMs).append('\n');
+                sb.append(StatEntry.time(e.init)).append(' ').append(e.getTookMs()).append('\n');
             }
         }
         return sb;
