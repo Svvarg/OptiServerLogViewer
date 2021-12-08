@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 import org.swarg.mcforge.statistic.CleanupEntry;
+import org.swarg.mcforge.statistic.StatEntry;
 
 /**
  * 21-11-21
@@ -49,7 +50,7 @@ public class CleanupStats {
                     int offi = r;
                     final byte[] ba = buf.array();
                     while ((offi-=oesz) >= 0) {
-                        final long time = buf.getLong(offi);
+                        final long time = buf.getLong(offi+8);
                         if (Utils.isTimeInRange(time, startStampTime, endStampTime )) {
                             list.add(new CleanupEntry(ba, offi));
                             inrange = true;
@@ -77,12 +78,15 @@ public class CleanupStats {
      * Для просмотра бинарного лога в простом текстовом виде в заданной временной
      * области
      * @param in файл бинарного лога
+     * @param stats Путь к логу статистики для поиска конкретных значений по времени.
      * @param startStampTime начало от когото нужно выводить (0 - с самого начала)
      * @param endStampTime значение timeMillis до которого делать выборку значений
      * @return
      */
-    public static Object getReadableTable(Path in, long startStampTime, long endStampTime) {
+    public static Object getReadableTable(Path in, Path stats, long startStampTime, long endStampTime) {
         List<CleanupEntry> list = parseFromBin(in, startStampTime, endStampTime);
+        List<StatEntry> statsList = TimingStats.parseFromBin(stats, startStampTime, endStampTime);
+        pupulateData(list, statsList);
         if (list == null || list.isEmpty()) {
             return "Emtpty for " + in;
         } else {
@@ -97,4 +101,25 @@ public class CleanupStats {
         }
     }
 
+    /**
+     * Заполняю данные об состояниях во время разных фаз очистки на основе лога
+     * TimingsStats
+     * @param cleans
+     * @param stats
+     */
+    public static void pupulateData(List<CleanupEntry> cleans, List<StatEntry> stats) {
+        if (cleans != null && cleans.size() > 0 && stats != null && stats.size() > 0) {
+            for (int i = 0; i < cleans.size(); i++) {
+                CleanupEntry e = cleans.get(i);
+                if (e.init != null) {
+                    for (int j = 0; j < stats.size(); j++) {
+                        StatEntry s = stats.get(j);
+                        if (s != null && s.time == e.init.time) {
+                            e.init = s;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

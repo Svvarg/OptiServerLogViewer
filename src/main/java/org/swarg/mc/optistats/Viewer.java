@@ -449,13 +449,14 @@ public class Viewer {
         Object ans;
         //где лежит бинарный лог с данными
         Path in = getPathByOptOfDef("-in", "inCleanups", "cleanup-log.bin");
+        Path stats = getPathByOptOfDef("-stats", "inStats", "stats.log.bin");//path to binarylog
         showInputFilePathOnOpt(in);//--show-input-file
 
         defineDateTimeRange(14);
 
         //Текстовая Таблица срабатываний очисток
         if (w.isCmd("view", "v")) {
-            ans = CleanupStats.getReadableTable(in, this.startTime, this.endTime);
+            ans = CleanupStats.getReadableTable(in, stats, this.startTime, this.endTime);
         } else {
             ans = CLEANUPS_USAGE;
         }
